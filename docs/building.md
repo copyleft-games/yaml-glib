@@ -56,8 +56,13 @@ yaml-glib uses GNU Make for building. The Makefile supports several configuratio
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `CC` | gcc | C compiler to use |
+| `AR` | ar | Archive tool |
+| `RANLIB` | ranlib | Archive index tool |
+| `PKG_CONFIG` | pkg-config | pkg-config tool |
 | `PREFIX` | /usr/local | Installation prefix |
 | `DESTDIR` | (empty) | Staging directory for packaging |
+| `WINDOWS` | 0 | Set to 1 for Windows cross-compilation |
+| `CROSS` | (empty) | Cross-compiler prefix (e.g., x86_64-w64-mingw32) |
 
 ### Compiler Flags
 
@@ -303,6 +308,133 @@ The library source files in `src/`:
 | yaml-schema.{h,c} | YamlSchema validation |
 | yaml-private.h | Private implementation details |
 | yaml-glib.h | Main include file |
+
+## Cross-Compilation
+
+yaml-glib supports cross-compilation for Windows using MinGW-w64. The build system automatically detects platform changes and cleans the build directory when switching between native and cross-compilation.
+
+### Cross-Compilation Dependencies
+
+**Fedora:**
+
+```bash
+sudo dnf install mingw64-gcc mingw64-glib2 mingw64-json-glib mingw64-libyaml
+```
+
+| Package | Description |
+|---------|-------------|
+| mingw64-gcc | MinGW-w64 GCC cross-compiler |
+| mingw64-glib2 | GLib 2.0 for Windows |
+| mingw64-json-glib | JSON-GLib for Windows |
+| mingw64-libyaml | libyaml for Windows |
+
+### Cross-Compilation Usage
+
+**Simple Windows build:**
+
+```bash
+make WINDOWS=1
+```
+
+**With explicit cross-compiler prefix:**
+
+```bash
+make CROSS=x86_64-w64-mingw32
+```
+
+**Build specific targets:**
+
+```bash
+make WINDOWS=1 tests      # Build test executables
+make WINDOWS=1 examples   # Build example programs
+make WINDOWS=1 lib-static # Build static library only
+make WINDOWS=1 lib-shared # Build DLL only
+```
+
+**View build configuration:**
+
+```bash
+make WINDOWS=1 info
+```
+
+### Cross-Compilation Output Files
+
+When cross-compiling for Windows, the following files are produced:
+
+| File | Description |
+|------|-------------|
+| `build/yaml-glib.dll` | Runtime DLL (ship with application) |
+| `build/libyaml-glib.dll.a` | Import library (for linking) |
+| `build/libyaml-glib.a` | Static library |
+| `build/test_*.exe` | Test executables |
+| `build/examples/*.exe` | Example programs |
+
+### Platform Auto-Detection
+
+The build system tracks the current build platform in `build/.platform`. When you switch between native and cross-compilation, the build directory is automatically cleaned to prevent mixing incompatible object files:
+
+```bash
+make                # Native Linux build
+make WINDOWS=1      # Auto-cleans and rebuilds for Windows
+make                # Auto-cleans and rebuilds for Linux
+```
+
+To force a clean build:
+
+```bash
+make clean && make WINDOWS=1
+```
+
+### Running Cross-Compiled Tests
+
+Cross-compiled test binaries cannot run directly on Linux. Options:
+
+1. **Use Wine** (recommended for quick testing):
+
+   ```bash
+   cd build
+   WINEPATH="/usr/x86_64-w64-mingw32/sys-root/mingw/bin" wine test_node.exe
+   ```
+
+   The `WINEPATH` environment variable tells Wine where to find the MinGW runtime DLLs (`libglib-2.0-0.dll`, `libyaml-0-2.dll`, etc.).
+
+   Run all tests:
+
+   ```bash
+   cd build
+   for exe in test_*.exe; do
+       echo "Running $exe..."
+       WINEPATH="/usr/x86_64-w64-mingw32/sys-root/mingw/bin" wine "$exe" 2>/dev/null
+   done
+   ```
+
+2. **Copy to Windows**: Transfer `build/*.exe`, `build/yaml-glib.dll`, and the required DLLs to a Windows machine
+
+3. **Use a Windows VM**: Share the build directory with a Windows VM
+
+### Notes on Cross-Compilation
+
+- The `install` target is disabled for cross-compilation (use manual file copying)
+- GObject Introspection is not supported for cross-compilation
+- All dependencies must be available for the MinGW-w64 toolchain
+
+### Adding Support for Other Platforms
+
+The build system is designed to be extensible. To add a new platform:
+
+1. Add a convenience variable (like `WINDOWS=1`) at the top of the Makefile
+2. Set the `CROSS` variable to the appropriate toolchain prefix
+3. Add platform-specific library naming in the platform configuration section
+4. Add any platform-specific linker flags
+
+Example for hypothetical ARM cross-compilation:
+
+```makefile
+ARM ?= 0
+ifeq ($(ARM),1)
+    CROSS := aarch64-linux-gnu
+endif
+```
 
 ## See Also
 

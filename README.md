@@ -34,6 +34,12 @@ sudo apt install gcc make libglib2.0-dev libyaml-dev libjson-glib-dev
 sudo pacman -S gcc make glib2 libyaml json-glib
 ```
 
+### Cross-Compilation for Windows (from Fedora)
+
+```bash
+sudo dnf install mingw64-gcc mingw64-glib2 mingw64-json-glib mingw64-libyaml
+```
+
 ## Quick Start
 
 ### Build
@@ -42,6 +48,30 @@ sudo pacman -S gcc make glib2 libyaml json-glib
 git clone <repository-url>
 cd yaml-glib
 make
+```
+
+### Cross-Compile for Windows
+
+```bash
+make WINDOWS=1
+make WINDOWS=1 tests examples
+```
+
+### Run Windows Tests with Wine
+
+```bash
+cd build
+WINEPATH="/usr/x86_64-w64-mingw32/sys-root/mingw/bin" wine test_node.exe
+```
+
+Or run all tests:
+
+```bash
+cd build
+for exe in test_*.exe; do
+    echo "Running $exe..."
+    WINEPATH="/usr/x86_64-w64-mingw32/sys-root/mingw/bin" wine "$exe" 2>/dev/null
+done
 ```
 
 ### Run Tests

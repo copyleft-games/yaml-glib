@@ -3,25 +3,96 @@
 # Copyright 2025 Zach Podbielniak
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
-# Build libyaml-glib.so and associated tests
+# Build libyaml-glib with cross-compilation support
 
-CC = gcc
-CFLAGS = -std=gnu89 -Wall -Wextra -g -fPIC -I./src \
-	`pkg-config --cflags glib-2.0 gobject-2.0 gio-2.0 yaml-0.1 json-glib-1.0`
-LDFLAGS = `pkg-config --libs glib-2.0 gobject-2.0 gio-2.0 yaml-0.1 json-glib-1.0`
+#=============================================================================
+# Cross-Compilation Configuration
+#=============================================================================
+# Usage:
+#   make                      # Native Linux build
+#   make WINDOWS=1            # Cross-compile for Windows x64
+#   make CROSS=x86_64-w64-mingw32  # Explicit cross-compiler prefix
+#=============================================================================
 
-# Library versioning
+WINDOWS ?= 0
+CROSS ?=
+
+# Set CROSS based on convenience variables
+ifeq ($(WINDOWS),1)
+    CROSS := x86_64-w64-mingw32
+endif
+
+#=============================================================================
+# Toolchain Configuration
+#=============================================================================
+
+ifneq ($(CROSS),)
+    CC := $(CROSS)-gcc
+    AR := $(CROSS)-ar
+    RANLIB := $(CROSS)-ranlib
+    PKG_CONFIG := $(CROSS)-pkg-config
+    TARGET_PLATFORM := windows
+else
+    CC ?= gcc
+    AR ?= ar
+    RANLIB ?= ranlib
+    PKG_CONFIG ?= pkg-config
+    TARGET_PLATFORM := linux
+endif
+
+#=============================================================================
+# Library Versioning
+#=============================================================================
+
 LIB_MAJOR = 1
 LIB_MINOR = 0
 LIB_PATCH = 0
 LIB_VERSION = $(LIB_MAJOR).$(LIB_MINOR).$(LIB_PATCH)
 
+#=============================================================================
 # Directories
+#=============================================================================
+
 SRCDIR = src
 TESTDIR = tests
+EXAMPLEDIR = examples
 BUILDDIR = build
 
-# Source files
+#=============================================================================
+# Platform-Specific Configuration
+#=============================================================================
+
+ifeq ($(TARGET_PLATFORM),windows)
+    # Windows: DLL + import library
+    LIB_STATIC := libyaml-glib.a
+    LIB_SHARED := yaml-glib.dll
+    LIB_IMPORT := libyaml-glib.dll.a
+    EXE_EXT := .exe
+    SHARED_LDFLAGS = -shared -Wl,--out-implib,$(BUILDDIR)/$(LIB_IMPORT)
+else
+    # Linux: SO with versioning
+    LIB_STATIC := libyaml-glib.a
+    LIB_SHARED := libyaml-glib.so
+    LIB_SHARED_VERSION := libyaml-glib.so.$(LIB_VERSION)
+    LIB_SHARED_SONAME := libyaml-glib.so.$(LIB_MAJOR)
+    EXE_EXT :=
+    SHARED_LDFLAGS = -shared -Wl,-soname,$(LIB_SHARED_SONAME)
+endif
+
+#=============================================================================
+# Compiler/Linker Flags
+#=============================================================================
+
+PKG_CFLAGS := $(shell $(PKG_CONFIG) --cflags glib-2.0 gobject-2.0 gio-2.0 yaml-0.1 json-glib-1.0)
+PKG_LIBS := $(shell $(PKG_CONFIG) --libs glib-2.0 gobject-2.0 gio-2.0 yaml-0.1 json-glib-1.0)
+
+CFLAGS = -std=gnu89 -Wall -Wextra -g -fPIC -I./$(SRCDIR) $(PKG_CFLAGS)
+LDFLAGS = $(PKG_LIBS)
+
+#=============================================================================
+# Source Files
+#=============================================================================
+
 SOURCES = \
 	$(SRCDIR)/yaml-node.c \
 	$(SRCDIR)/yaml-mapping.c \
@@ -34,7 +105,6 @@ SOURCES = \
 	$(SRCDIR)/yaml-gobject.c \
 	$(SRCDIR)/yaml-schema.c
 
-# Header files
 HEADERS = \
 	$(SRCDIR)/yaml-glib.h \
 	$(SRCDIR)/yaml-types.h \
@@ -50,7 +120,6 @@ HEADERS = \
 	$(SRCDIR)/yaml-schema.h \
 	$(SRCDIR)/yaml-private.h
 
-# Object files
 OBJECTS = \
 	$(BUILDDIR)/yaml-node.o \
 	$(BUILDDIR)/yaml-mapping.o \
@@ -63,40 +132,151 @@ OBJECTS = \
 	$(BUILDDIR)/yaml-gobject.o \
 	$(BUILDDIR)/yaml-schema.o
 
-# Library names
-LIBNAME = libyaml-glib
-SONAME = $(LIBNAME).so.$(LIB_MAJOR)
-REALNAME = $(LIBNAME).so.$(LIB_VERSION)
-STATICLIB = $(BUILDDIR)/$(LIBNAME).a
-SHAREDLIB = $(BUILDDIR)/$(REALNAME)
+#=============================================================================
+# Platform Marker (Auto-Clean on Platform Switch)
+#=============================================================================
 
-# Default target
-all: $(BUILDDIR) $(SHAREDLIB) $(STATICLIB)
+PLATFORM_MARKER := $(BUILDDIR)/.platform
 
-$(BUILDDIR):
-	mkdir -p $(BUILDDIR)
+#=============================================================================
+# Test Configuration
+#=============================================================================
 
-# Generic rule for object files
-$(BUILDDIR)/%.o: $(SRCDIR)/%.c $(HEADERS)
-	$(CC) $(CFLAGS) -c $< -o $@
+TEST_SOURCES = $(wildcard $(TESTDIR)/test_*.c)
+TEST_BINARIES = $(patsubst $(TESTDIR)/%.c,$(BUILDDIR)/%$(EXE_EXT),$(TEST_SOURCES))
 
-# Shared library with versioning
-$(SHAREDLIB): $(OBJECTS)
-	$(CC) -shared -Wl,-soname,$(SONAME) -o $@ $^ $(LDFLAGS)
-	ln -sf $(REALNAME) $(BUILDDIR)/$(SONAME)
-	ln -sf $(SONAME) $(BUILDDIR)/$(LIBNAME).so
+#=============================================================================
+# Example Configuration
+#=============================================================================
 
-# Static library
-$(STATICLIB): $(OBJECTS)
-	ar rcs $@ $^
+EXAMPLE_BINARIES = \
+	$(BUILDDIR)/examples/yaml-print$(EXE_EXT) \
+	$(BUILDDIR)/examples/yaml-to-json$(EXE_EXT) \
+	$(BUILDDIR)/examples/json-to-yaml$(EXE_EXT)
 
-# Install target
+#=============================================================================
+# Install Configuration
+#=============================================================================
+
 PREFIX ?= /usr/local
 INCLUDEDIR = $(PREFIX)/include/yaml-glib
 LIBDIR = $(PREFIX)/lib
 PKGCONFIGDIR = $(LIBDIR)/pkgconfig
 
-install: $(SHAREDLIB) $(STATICLIB)
+#=============================================================================
+# Default Target
+#=============================================================================
+
+all: platform-check $(BUILDDIR) libs
+
+#=============================================================================
+# Platform Check (Auto-Clean on Platform Switch)
+#=============================================================================
+
+.PHONY: platform-check
+platform-check:
+	@mkdir -p $(BUILDDIR)
+	@if [ -f "$(PLATFORM_MARKER)" ] && \
+	   [ "$$(cat $(PLATFORM_MARKER))" != "$(TARGET_PLATFORM)" ]; then \
+		echo "Platform changed from $$(cat $(PLATFORM_MARKER)) to $(TARGET_PLATFORM), cleaning..."; \
+		rm -rf $(BUILDDIR)/*; \
+		mkdir -p $(BUILDDIR); \
+	fi
+	@echo "$(TARGET_PLATFORM)" > $(PLATFORM_MARKER)
+
+#=============================================================================
+# Directory Creation
+#=============================================================================
+
+$(BUILDDIR):
+	mkdir -p $(BUILDDIR)
+
+$(BUILDDIR)/examples:
+	mkdir -p $(BUILDDIR)/examples
+
+#=============================================================================
+# Library Targets
+#=============================================================================
+
+.PHONY: libs lib-static lib-shared
+libs: lib-static lib-shared
+
+lib-static: $(BUILDDIR)/$(LIB_STATIC)
+
+lib-shared: $(BUILDDIR)/$(LIB_SHARED)
+
+# Static library
+$(BUILDDIR)/$(LIB_STATIC): $(OBJECTS)
+	$(AR) rcs $@ $^
+	$(RANLIB) $@
+
+# Shared library (platform-specific)
+ifeq ($(TARGET_PLATFORM),windows)
+$(BUILDDIR)/$(LIB_SHARED): $(OBJECTS)
+	$(CC) $(SHARED_LDFLAGS) -o $@ $^ $(LDFLAGS)
+	@echo "Built: $(LIB_SHARED) and $(LIB_IMPORT)"
+else
+$(BUILDDIR)/$(LIB_SHARED): $(OBJECTS)
+	$(CC) $(SHARED_LDFLAGS) -o $(BUILDDIR)/$(LIB_SHARED_VERSION) $^ $(LDFLAGS)
+	ln -sf $(LIB_SHARED_VERSION) $(BUILDDIR)/$(LIB_SHARED_SONAME)
+	ln -sf $(LIB_SHARED_SONAME) $(BUILDDIR)/$(LIB_SHARED)
+	@echo "Built: $(LIB_SHARED_VERSION) with symlinks"
+endif
+
+#=============================================================================
+# Object File Rules
+#=============================================================================
+
+$(BUILDDIR)/%.o: $(SRCDIR)/%.c $(HEADERS)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+#=============================================================================
+# Test Targets
+#=============================================================================
+
+.PHONY: tests
+tests: platform-check $(BUILDDIR) $(BUILDDIR)/$(LIB_STATIC) $(TEST_BINARIES)
+
+$(BUILDDIR)/test_%$(EXE_EXT): $(TESTDIR)/test_%.c $(BUILDDIR)/$(LIB_STATIC)
+	$(CC) $(CFLAGS) -o $@ $< $(BUILDDIR)/$(LIB_STATIC) $(LDFLAGS)
+
+.PHONY: check run-tests
+check: tests
+ifeq ($(TARGET_PLATFORM),windows)
+	@echo "Cross-compiled tests cannot be run on Linux. Use Wine or copy to Windows."
+	@echo "Test binaries built in $(BUILDDIR)/"
+else
+	@for test in $(BUILDDIR)/test_*; do \
+		if [ -x "$$test" ]; then \
+			echo "Running $$test..."; \
+			$$test || exit 1; \
+		fi \
+	done
+	@echo "All tests passed!"
+endif
+
+run-tests: check
+
+#=============================================================================
+# Example Targets
+#=============================================================================
+
+.PHONY: examples
+examples: platform-check $(BUILDDIR)/examples $(BUILDDIR)/$(LIB_STATIC) $(EXAMPLE_BINARIES)
+
+$(BUILDDIR)/examples/%$(EXE_EXT): $(EXAMPLEDIR)/%.c $(BUILDDIR)/$(LIB_STATIC)
+	$(CC) $(CFLAGS) -o $@ $< $(BUILDDIR)/$(LIB_STATIC) $(LDFLAGS)
+
+#=============================================================================
+# Install Targets
+#=============================================================================
+
+.PHONY: install
+install: libs
+ifeq ($(TARGET_PLATFORM),windows)
+	@echo "Install target is for native Linux builds only."
+	@echo "For Windows, copy the DLL and headers manually."
+else
 	install -d $(DESTDIR)$(INCLUDEDIR)
 	install -d $(DESTDIR)$(LIBDIR)
 	install -d $(DESTDIR)$(PKGCONFIGDIR)
@@ -112,69 +292,57 @@ install: $(SHAREDLIB) $(STATICLIB)
 	install -m 644 $(SRCDIR)/yaml-serializable.h $(DESTDIR)$(INCLUDEDIR)/
 	install -m 644 $(SRCDIR)/yaml-gobject.h $(DESTDIR)$(INCLUDEDIR)/
 	install -m 644 $(SRCDIR)/yaml-schema.h $(DESTDIR)$(INCLUDEDIR)/
-	install -m 755 $(SHAREDLIB) $(DESTDIR)$(LIBDIR)/
-	install -m 644 $(STATICLIB) $(DESTDIR)$(LIBDIR)/
-	ln -sf $(REALNAME) $(DESTDIR)$(LIBDIR)/$(SONAME)
-	ln -sf $(SONAME) $(DESTDIR)$(LIBDIR)/$(LIBNAME).so
+	install -m 755 $(BUILDDIR)/$(LIB_SHARED_VERSION) $(DESTDIR)$(LIBDIR)/
+	install -m 644 $(BUILDDIR)/$(LIB_STATIC) $(DESTDIR)$(LIBDIR)/
+	ln -sf $(LIB_SHARED_VERSION) $(DESTDIR)$(LIBDIR)/$(LIB_SHARED_SONAME)
+	ln -sf $(LIB_SHARED_SONAME) $(DESTDIR)$(LIBDIR)/$(LIB_SHARED)
 	ldconfig -n $(DESTDIR)$(LIBDIR) || true
+endif
 
-# Uninstall target
+.PHONY: uninstall
 uninstall:
 	rm -rf $(DESTDIR)$(INCLUDEDIR)
-	rm -f $(DESTDIR)$(LIBDIR)/$(LIBNAME).so*
-	rm -f $(DESTDIR)$(LIBDIR)/$(LIBNAME).a
+	rm -f $(DESTDIR)$(LIBDIR)/$(LIB_SHARED)*
+	rm -f $(DESTDIR)$(LIBDIR)/$(LIB_STATIC)
 	rm -f $(DESTDIR)$(PKGCONFIGDIR)/yaml-glib.pc
 
-# Test targets
-TEST_SOURCES = $(wildcard $(TESTDIR)/test_*.c)
-TEST_OBJECTS = $(patsubst $(TESTDIR)/%.c,$(BUILDDIR)/%.o,$(TEST_SOURCES))
-TEST_BINARIES = $(patsubst $(TESTDIR)/%.c,$(BUILDDIR)/%,$(TEST_SOURCES))
+#=============================================================================
+# Clean Target
+#=============================================================================
 
-tests: $(BUILDDIR) $(STATICLIB) $(TEST_BINARIES)
-
-$(BUILDDIR)/test_%: $(BUILDDIR)/test_%.o $(STATICLIB)
-	$(CC) -o $@ $^ $(LDFLAGS)
-
-$(BUILDDIR)/test_%.o: $(TESTDIR)/test_%.c $(HEADERS)
-	$(CC) $(CFLAGS) -c $< -o $@
-
-# Run tests
-check: tests
-	@for test in $(BUILDDIR)/test_*; do \
-		if [ -x "$$test" ]; then \
-			echo "Running $$test..."; \
-			$$test || exit 1; \
-		fi \
-	done
-	@echo "All tests passed!"
-
-run-tests: check
-
-# Example targets
-EXAMPLEDIR = examples
-EXAMPLE_SOURCES = \
-	$(EXAMPLEDIR)/yaml-print.c \
-	$(EXAMPLEDIR)/yaml-to-json.c \
-	$(EXAMPLEDIR)/json-to-yaml.c
-
-EXAMPLE_BINARIES = \
-	$(BUILDDIR)/examples/yaml-print \
-	$(BUILDDIR)/examples/yaml-to-json \
-	$(BUILDDIR)/examples/json-to-yaml
-
-examples: $(BUILDDIR)/examples $(STATICLIB) $(EXAMPLE_BINARIES)
-
-$(BUILDDIR)/examples:
-	mkdir -p $(BUILDDIR)/examples
-
-$(BUILDDIR)/examples/%: $(EXAMPLEDIR)/%.c $(STATICLIB)
-	$(CC) $(CFLAGS) -o $@ $< $(STATICLIB) $(LDFLAGS)
-
-# Clean up
+.PHONY: clean
 clean:
 	rm -rf $(BUILDDIR)
 
-# Dependency on all headers for safety
+#=============================================================================
+# Info Target (Debug)
+#=============================================================================
+
+.PHONY: info
+info:
+	@echo "=== Build Configuration ==="
+	@echo "TARGET_PLATFORM: $(TARGET_PLATFORM)"
+	@echo "CROSS:           $(CROSS)"
+	@echo "CC:              $(CC)"
+	@echo "AR:              $(AR)"
+	@echo "PKG_CONFIG:      $(PKG_CONFIG)"
+	@echo ""
+	@echo "=== Output Files ==="
+	@echo "LIB_STATIC:      $(LIB_STATIC)"
+	@echo "LIB_SHARED:      $(LIB_SHARED)"
+ifeq ($(TARGET_PLATFORM),windows)
+	@echo "LIB_IMPORT:      $(LIB_IMPORT)"
+endif
+	@echo "EXE_EXT:         '$(EXE_EXT)'"
+	@echo ""
+	@echo "=== Directories ==="
+	@echo "BUILDDIR:        $(BUILDDIR)"
+	@echo "PREFIX:          $(PREFIX)"
+
+#=============================================================================
+# Header Dependencies
+#=============================================================================
+
 $(OBJECTS): $(HEADERS)
 
-.PHONY: all clean install uninstall tests check run-tests examples
+.PHONY: all libs lib-static lib-shared tests check run-tests examples install uninstall clean info
