@@ -418,22 +418,182 @@ Cross-compiled test binaries cannot run directly on Linux. Options:
 - GObject Introspection is not supported for cross-compilation
 - All dependencies must be available for the MinGW-w64 toolchain
 
-### Adding Support for Other Platforms
+## Cross-Compiling for Linux ARM64
 
-The build system is designed to be extensible. To add a new platform:
+yaml-glib supports cross-compilation for Linux ARM64 (aarch64) targets. Unlike Windows cross-compilation (which uses pre-built `mingw64-*` packages), ARM64 cross-compilation requires setting up a sysroot with ARM64 libraries.
 
-1. Add a convenience variable (like `WINDOWS=1`) at the top of the Makefile
-2. Set the `CROSS` variable to the appropriate toolchain prefix
-3. Add platform-specific library naming in the platform configuration section
-4. Add any platform-specific linker flags
+### Cross-Compilation Dependencies
 
-Example for hypothetical ARM cross-compilation:
+**Fedora:**
 
-```makefile
-ARM ?= 0
-ifeq ($(ARM),1)
-    CROSS := aarch64-linux-gnu
-endif
+```bash
+sudo dnf install gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
+    sysroot-aarch64-fc41-glibc qemu-user-static cpio
+```
+
+| Package | Description |
+|---------|-------------|
+| gcc-aarch64-linux-gnu | ARM64 cross-compiler |
+| binutils-aarch64-linux-gnu | ARM64 cross binutils (ar, ranlib, ld) |
+| sysroot-aarch64-fc41-glibc | Base ARM64 glibc sysroot with headers and runtime |
+| qemu-user-static | Run ARM64 binaries on x86_64 via QEMU |
+| cpio | Required to extract RPM packages |
+
+The `sysroot-aarch64-fc41-glibc` package installs the base sysroot to `/usr/aarch64-redhat-linux/sys-root/fc41`.
+
+### Setting Up the ARM64 Sysroot
+
+The base glibc sysroot doesn't include glib2, libyaml, or json-glib. Use the provided script to download and extract ARM64 versions of these libraries:
+
+```bash
+sudo ./scripts/setup-arm64-sysroot.sh
+```
+
+This downloads ARM64 packages from Fedora repositories and extracts them into the Fedora sysroot at `/usr/aarch64-redhat-linux/sys-root/fc41`.
+
+**Custom sysroot location:**
+
+```bash
+./scripts/setup-arm64-sysroot.sh ~/arm64-sysroot
+```
+
+**Manual setup:**
+
+If you prefer to set up the sysroot manually:
+
+```bash
+SYSROOT=/usr/aarch64-redhat-linux/sys-root/fc41
+TMPDIR=$(mktemp -d)
+
+# Download ARM64 packages
+dnf download --destdir="$TMPDIR" --forcearch=aarch64 \
+    glib2 glib2-devel libyaml libyaml-devel json-glib json-glib-devel \
+    libffi libffi-devel pcre2 pcre2-devel zlib zlib-devel \
+    libmount libmount-devel libblkid libblkid-devel \
+    libselinux libselinux-devel libsepol libsepol-devel
+
+# Extract to sysroot
+for rpm in "$TMPDIR"/*.rpm; do
+    rpm2cpio "$rpm" | sudo cpio -idm -D "$SYSROOT"
+done
+```
+
+### Cross-Compilation Usage
+
+**Simple ARM64 build:**
+
+```bash
+make LINUX_ARM64=1
+```
+
+**With custom sysroot:**
+
+```bash
+make LINUX_ARM64=1 ARM64_SYSROOT=~/arm64-sysroot
+```
+
+**Build specific targets:**
+
+```bash
+make LINUX_ARM64=1 tests      # Build test executables
+make LINUX_ARM64=1 examples   # Build example programs
+make LINUX_ARM64=1 lib-static # Build static library only
+make LINUX_ARM64=1 lib-shared # Build shared library only
+```
+
+**View build configuration:**
+
+```bash
+make LINUX_ARM64=1 info
+```
+
+### ARM64 Output Files
+
+When cross-compiling for ARM64, the following files are produced:
+
+| File | Description |
+|------|-------------|
+| `build/libyaml-glib.so.1.0.0` | Shared library (ELF aarch64) |
+| `build/libyaml-glib.so.1` | Soname symlink |
+| `build/libyaml-glib.so` | Development symlink |
+| `build/libyaml-glib.a` | Static library |
+| `build/test_*` | Test executables (ELF aarch64) |
+| `build/examples/*` | Example programs (ELF aarch64) |
+
+Verify the architecture:
+
+```bash
+file build/libyaml-glib.so.1.0.0
+# Output: ELF 64-bit LSB shared object, ARM aarch64, ...
+```
+
+### Running ARM64 Tests
+
+Cross-compiled tests can be run using QEMU user-mode emulation:
+
+```bash
+make LINUX_ARM64=1 check
+```
+
+This automatically uses `qemu-aarch64` with the sysroot as the library path.
+
+**Manual test execution:**
+
+```bash
+qemu-aarch64 -L /usr/aarch64-redhat-linux/sys-root/fc41 ./build/test_node
+```
+
+**Run all tests manually:**
+
+```bash
+SYSROOT=/usr/aarch64-redhat-linux/sys-root/fc41
+for test in build/test_*; do
+    echo "Running $test..."
+    qemu-aarch64 -L "$SYSROOT" "$test" || exit 1
+done
+```
+
+### Troubleshooting
+
+**pkg-config errors during build:**
+
+Ensure the sysroot has .pc files:
+
+```bash
+ls /usr/aarch64-redhat-linux/sys-root/fc41/usr/lib64/pkgconfig/
+```
+
+If missing, run the sysroot setup script again:
+
+```bash
+sudo ./scripts/setup-arm64-sysroot.sh
+```
+
+**QEMU fails with "Exec format error":**
+
+Ensure `qemu-user-static` is installed and binfmt_misc is configured:
+
+```bash
+sudo dnf install qemu-user-static
+sudo systemctl restart systemd-binfmt
+```
+
+**Library not found at runtime:**
+
+QEMU needs the sysroot path. Either use `make check` (which sets it automatically) or specify manually:
+
+```bash
+qemu-aarch64 -L /usr/aarch64-redhat-linux/sys-root/fc41 ./build/test_node
+```
+
+**Missing dependencies in sysroot:**
+
+The setup script downloads common dependencies. If you get linker errors about missing libraries, you may need to download additional packages:
+
+```bash
+SYSROOT=/usr/aarch64-redhat-linux/sys-root/fc41
+dnf download --destdir=/tmp/arm64 --forcearch=aarch64 <missing-package>
+rpm2cpio /tmp/arm64/<package>.rpm | sudo cpio -idm -D "$SYSROOT"
 ```
 
 ## See Also

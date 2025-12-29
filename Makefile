@@ -9,17 +9,46 @@
 # Cross-Compilation Configuration
 #=============================================================================
 # Usage:
-#   make                      # Native Linux build
+#   make                      # Native Linux build (x86_64 or aarch64)
 #   make WINDOWS=1            # Cross-compile for Windows x64
-#   make CROSS=x86_64-w64-mingw32  # Explicit cross-compiler prefix
+#   make LINUX_ARM64=1        # Cross-compile for Linux ARM64
+#   make CROSS=<prefix>       # Explicit cross-compiler prefix
+#
+# See docs/building.md for detailed cross-compilation instructions.
 #=============================================================================
 
 WINDOWS ?= 0
+LINUX_ARM64 ?= 0
 CROSS ?=
+
+# ARM64 sysroot location (Fedora's sysroot-aarch64-fc41-glibc package)
+ARM64_SYSROOT ?= /usr/aarch64-redhat-linux/sys-root/fc41
 
 # Set CROSS based on convenience variables
 ifeq ($(WINDOWS),1)
     CROSS := x86_64-w64-mingw32
+endif
+
+ifeq ($(LINUX_ARM64),1)
+    CROSS := aarch64-linux-gnu
+endif
+
+#=============================================================================
+# Architecture Detection
+#=============================================================================
+# Detect target architecture (useful for info/debugging)
+# For ARM64 builds, use container-based native compilation (see docs/building.md)
+
+ifneq ($(CROSS),)
+    ifeq ($(CROSS),x86_64-w64-mingw32)
+        TARGET_ARCH := x86_64
+    else ifeq ($(CROSS),aarch64-linux-gnu)
+        TARGET_ARCH := aarch64
+    else
+        TARGET_ARCH := unknown
+    endif
+else
+    TARGET_ARCH := $(shell uname -m)
 endif
 
 #=============================================================================
@@ -30,14 +59,29 @@ ifneq ($(CROSS),)
     CC := $(CROSS)-gcc
     AR := $(CROSS)-ar
     RANLIB := $(CROSS)-ranlib
-    PKG_CONFIG := $(CROSS)-pkg-config
-    TARGET_PLATFORM := windows
+
+    ifeq ($(CROSS),x86_64-w64-mingw32)
+        # Windows cross-compilation uses mingw pkg-config wrapper
+        PKG_CONFIG := $(CROSS)-pkg-config
+        TARGET_PLATFORM := windows
+    else ifeq ($(CROSS),aarch64-linux-gnu)
+        # ARM64 cross-compilation uses sysroot with native pkg-config
+        PKG_CONFIG_SYSROOT_DIR := $(ARM64_SYSROOT)
+        PKG_CONFIG_PATH := $(ARM64_SYSROOT)/usr/lib64/pkgconfig:$(ARM64_SYSROOT)/usr/share/pkgconfig
+        PKG_CONFIG := PKG_CONFIG_SYSROOT_DIR=$(PKG_CONFIG_SYSROOT_DIR) PKG_CONFIG_PATH=$(PKG_CONFIG_PATH) pkg-config
+        SYSROOT_FLAGS := --sysroot=$(ARM64_SYSROOT)
+        TARGET_PLATFORM := linux
+    else
+        PKG_CONFIG := pkg-config
+        TARGET_PLATFORM := linux
+    endif
 else
     CC ?= gcc
     AR ?= ar
     RANLIB ?= ranlib
     PKG_CONFIG ?= pkg-config
     TARGET_PLATFORM := linux
+    SYSROOT_FLAGS :=
 endif
 
 #=============================================================================
@@ -86,8 +130,8 @@ endif
 PKG_CFLAGS := $(shell $(PKG_CONFIG) --cflags glib-2.0 gobject-2.0 gio-2.0 yaml-0.1 json-glib-1.0)
 PKG_LIBS := $(shell $(PKG_CONFIG) --libs glib-2.0 gobject-2.0 gio-2.0 yaml-0.1 json-glib-1.0)
 
-CFLAGS = -std=gnu89 -Wall -Wextra -g -fPIC -I./$(SRCDIR) $(PKG_CFLAGS)
-LDFLAGS = $(PKG_LIBS)
+CFLAGS = -std=gnu89 -Wall -Wextra -g -fPIC -I./$(SRCDIR) $(SYSROOT_FLAGS) $(PKG_CFLAGS)
+LDFLAGS = $(SYSROOT_FLAGS) $(PKG_LIBS)
 
 #=============================================================================
 # Source Files
@@ -245,6 +289,15 @@ check: tests
 ifeq ($(TARGET_PLATFORM),windows)
 	@echo "Cross-compiled tests cannot be run on Linux. Use Wine or copy to Windows."
 	@echo "Test binaries built in $(BUILDDIR)/"
+else ifeq ($(CROSS),aarch64-linux-gnu)
+	@echo "Running ARM64 tests via QEMU (requires qemu-user-static)..."
+	@for test in $(BUILDDIR)/test_*; do \
+		if [ -x "$$test" ]; then \
+			echo "Running $$test..."; \
+			qemu-aarch64 -L $(ARM64_SYSROOT) $$test || exit 1; \
+		fi \
+	done
+	@echo "All tests passed!"
 else
 	@for test in $(BUILDDIR)/test_*; do \
 		if [ -x "$$test" ]; then \
@@ -322,10 +375,14 @@ clean:
 info:
 	@echo "=== Build Configuration ==="
 	@echo "TARGET_PLATFORM: $(TARGET_PLATFORM)"
+	@echo "TARGET_ARCH:     $(TARGET_ARCH)"
 	@echo "CROSS:           $(CROSS)"
 	@echo "CC:              $(CC)"
 	@echo "AR:              $(AR)"
 	@echo "PKG_CONFIG:      $(PKG_CONFIG)"
+ifeq ($(CROSS),aarch64-linux-gnu)
+	@echo "ARM64_SYSROOT:   $(ARM64_SYSROOT)"
+endif
 	@echo ""
 	@echo "=== Output Files ==="
 	@echo "LIB_STATIC:      $(LIB_STATIC)"

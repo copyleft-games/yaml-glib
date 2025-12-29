@@ -40,6 +40,14 @@ sudo pacman -S gcc make glib2 libyaml json-glib
 sudo dnf install mingw64-gcc mingw64-glib2 mingw64-json-glib mingw64-libyaml
 ```
 
+### Cross-Compilation for Linux ARM64 (from Fedora x86_64)
+
+```bash
+sudo dnf install gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
+    sysroot-aarch64-fc41-glibc qemu-user-static cpio
+sudo ./scripts/setup-arm64-sysroot.sh  # Adds glib2, libyaml, json-glib to sysroot
+```
+
 ## Quick Start
 
 ### Build
@@ -64,14 +72,17 @@ cd build
 WINEPATH="/usr/x86_64-w64-mingw32/sys-root/mingw/bin" wine test_node.exe
 ```
 
-Or run all tests:
+### Cross-Compile for Linux ARM64
 
 ```bash
-cd build
-for exe in test_*.exe; do
-    echo "Running $exe..."
-    WINEPATH="/usr/x86_64-w64-mingw32/sys-root/mingw/bin" wine "$exe" 2>/dev/null
-done
+make LINUX_ARM64=1
+make LINUX_ARM64=1 tests examples
+```
+
+### Run ARM64 Tests with QEMU
+
+```bash
+make LINUX_ARM64=1 check
 ```
 
 ### Run Tests
