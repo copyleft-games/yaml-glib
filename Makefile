@@ -92,6 +92,7 @@ LIB_MAJOR = 1
 LIB_MINOR = 0
 LIB_PATCH = 0
 LIB_VERSION = $(LIB_MAJOR).$(LIB_MINOR).$(LIB_PATCH)
+VERSION = $(LIB_VERSION)
 
 #=============================================================================
 # Directories
@@ -203,15 +204,16 @@ EXAMPLE_BINARIES = \
 #=============================================================================
 
 PREFIX ?= /usr/local
-INCLUDEDIR = $(PREFIX)/include/yaml-glib
-LIBDIR = $(PREFIX)/lib
+LIBSUFFIX ?= $(if $(wildcard /usr/lib64),lib64,lib)
+INCLUDEDIR = $(PREFIX)/include
+LIBDIR = $(PREFIX)/$(LIBSUFFIX)
 PKGCONFIGDIR = $(LIBDIR)/pkgconfig
 
 #=============================================================================
 # Default Target
 #=============================================================================
 
-all: platform-check $(BUILDDIR) libs
+all: platform-check $(BUILDDIR) libs yaml-glib-1.0.pc
 
 #=============================================================================
 # Platform Check (Auto-Clean on Platform Switch)
@@ -266,6 +268,18 @@ $(BUILDDIR)/$(LIB_SHARED): $(OBJECTS)
 	ln -sf $(LIB_SHARED_SONAME) $(BUILDDIR)/$(LIB_SHARED)
 	@echo "Built: $(LIB_SHARED_VERSION) with symlinks"
 endif
+
+#=============================================================================
+# pkg-config File
+#=============================================================================
+
+yaml-glib-1.0.pc: yaml-glib-1.0.pc.in
+	@echo "Generating pkg-config file..."
+	@sed -e 's|@PREFIX@|$(PREFIX)|g' \
+	     -e 's|@LIBDIR@|$(LIBDIR)|g' \
+	     -e 's|@INCLUDEDIR@|$(INCLUDEDIR)|g' \
+	     -e 's|@VERSION@|$(VERSION)|g' \
+	     $< > $@
 
 #=============================================================================
 # Object File Rules
@@ -325,26 +339,27 @@ $(BUILDDIR)/examples/%$(EXE_EXT): $(EXAMPLEDIR)/%.c $(BUILDDIR)/$(LIB_STATIC)
 #=============================================================================
 
 .PHONY: install
-install: libs
+install: libs yaml-glib-1.0.pc
 ifeq ($(TARGET_PLATFORM),windows)
 	@echo "Install target is for native Linux builds only."
 	@echo "For Windows, copy the DLL and headers manually."
 else
-	install -d $(DESTDIR)$(INCLUDEDIR)
+	install -d $(DESTDIR)$(INCLUDEDIR)/yaml-glib
 	install -d $(DESTDIR)$(LIBDIR)
 	install -d $(DESTDIR)$(PKGCONFIGDIR)
-	install -m 644 $(SRCDIR)/yaml-glib.h $(DESTDIR)$(INCLUDEDIR)/
-	install -m 644 $(SRCDIR)/yaml-types.h $(DESTDIR)$(INCLUDEDIR)/
-	install -m 644 $(SRCDIR)/yaml-node.h $(DESTDIR)$(INCLUDEDIR)/
-	install -m 644 $(SRCDIR)/yaml-mapping.h $(DESTDIR)$(INCLUDEDIR)/
-	install -m 644 $(SRCDIR)/yaml-sequence.h $(DESTDIR)$(INCLUDEDIR)/
-	install -m 644 $(SRCDIR)/yaml-document.h $(DESTDIR)$(INCLUDEDIR)/
-	install -m 644 $(SRCDIR)/yaml-parser.h $(DESTDIR)$(INCLUDEDIR)/
-	install -m 644 $(SRCDIR)/yaml-builder.h $(DESTDIR)$(INCLUDEDIR)/
-	install -m 644 $(SRCDIR)/yaml-generator.h $(DESTDIR)$(INCLUDEDIR)/
-	install -m 644 $(SRCDIR)/yaml-serializable.h $(DESTDIR)$(INCLUDEDIR)/
-	install -m 644 $(SRCDIR)/yaml-gobject.h $(DESTDIR)$(INCLUDEDIR)/
-	install -m 644 $(SRCDIR)/yaml-schema.h $(DESTDIR)$(INCLUDEDIR)/
+	install -m 644 $(SRCDIR)/yaml-glib.h $(DESTDIR)$(INCLUDEDIR)/yaml-glib/
+	install -m 644 $(SRCDIR)/yaml-types.h $(DESTDIR)$(INCLUDEDIR)/yaml-glib/
+	install -m 644 $(SRCDIR)/yaml-node.h $(DESTDIR)$(INCLUDEDIR)/yaml-glib/
+	install -m 644 $(SRCDIR)/yaml-mapping.h $(DESTDIR)$(INCLUDEDIR)/yaml-glib/
+	install -m 644 $(SRCDIR)/yaml-sequence.h $(DESTDIR)$(INCLUDEDIR)/yaml-glib/
+	install -m 644 $(SRCDIR)/yaml-document.h $(DESTDIR)$(INCLUDEDIR)/yaml-glib/
+	install -m 644 $(SRCDIR)/yaml-parser.h $(DESTDIR)$(INCLUDEDIR)/yaml-glib/
+	install -m 644 $(SRCDIR)/yaml-builder.h $(DESTDIR)$(INCLUDEDIR)/yaml-glib/
+	install -m 644 $(SRCDIR)/yaml-generator.h $(DESTDIR)$(INCLUDEDIR)/yaml-glib/
+	install -m 644 $(SRCDIR)/yaml-serializable.h $(DESTDIR)$(INCLUDEDIR)/yaml-glib/
+	install -m 644 $(SRCDIR)/yaml-gobject.h $(DESTDIR)$(INCLUDEDIR)/yaml-glib/
+	install -m 644 $(SRCDIR)/yaml-schema.h $(DESTDIR)$(INCLUDEDIR)/yaml-glib/
+	install -m 644 yaml-glib-1.0.pc $(DESTDIR)$(PKGCONFIGDIR)/
 	install -m 755 $(BUILDDIR)/$(LIB_SHARED_VERSION) $(DESTDIR)$(LIBDIR)/
 	install -m 644 $(BUILDDIR)/$(LIB_STATIC) $(DESTDIR)$(LIBDIR)/
 	ln -sf $(LIB_SHARED_VERSION) $(DESTDIR)$(LIBDIR)/$(LIB_SHARED_SONAME)
@@ -354,10 +369,10 @@ endif
 
 .PHONY: uninstall
 uninstall:
-	rm -rf $(DESTDIR)$(INCLUDEDIR)
+	rm -rf $(DESTDIR)$(INCLUDEDIR)/yaml-glib
 	rm -f $(DESTDIR)$(LIBDIR)/$(LIB_SHARED)*
 	rm -f $(DESTDIR)$(LIBDIR)/$(LIB_STATIC)
-	rm -f $(DESTDIR)$(PKGCONFIGDIR)/yaml-glib.pc
+	rm -f $(DESTDIR)$(PKGCONFIGDIR)/yaml-glib-1.0.pc
 
 #=============================================================================
 # Clean Target
@@ -366,6 +381,7 @@ uninstall:
 .PHONY: clean
 clean:
 	rm -rf $(BUILDDIR)
+	rm -f yaml-glib-1.0.pc
 
 #=============================================================================
 # Info Target (Debug)
