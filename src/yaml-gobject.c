@@ -275,7 +275,9 @@ deserialize_gobject_internal(
     guint n_pspecs;
     guint i;
     guint n_construct_props = 0;
+    G_GNUC_BEGIN_IGNORE_DEPRECATIONS
     GParameter *construct_params = NULL;
+    G_GNUC_END_IGNORE_DEPRECATIONS
     gboolean is_serializable;
 
     if (yaml_node_get_node_type(node) != YAML_NODE_MAPPING)
@@ -309,7 +311,9 @@ deserialize_gobject_internal(
     {
         guint prop_idx = 0;
 
+        G_GNUC_BEGIN_IGNORE_DEPRECATIONS
         construct_params = g_new0(GParameter, n_construct_props);
+        G_GNUC_END_IGNORE_DEPRECATIONS
 
         for (i = 0; i < n_pspecs && prop_idx < n_construct_props; i++)
         {
