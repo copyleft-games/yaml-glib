@@ -86,7 +86,6 @@ test_mapping_basic(void)
 {
     YamlMapping *mapping;
     YamlNode *node;
-    YamlNode *value;
 
     mapping = yaml_mapping_new();
     g_assert_nonnull(mapping);

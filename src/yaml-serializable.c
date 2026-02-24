@@ -321,10 +321,10 @@ deserialize_strv(YamlNode *node)
 
 YamlNode *
 yaml_serializable_default_serialize_property(
-    YamlSerializable *serializable,
+    YamlSerializable *serializable G_GNUC_UNUSED,
     const gchar      *property_name,
     const GValue     *value,
-    GParamSpec       *pspec
+    GParamSpec       *pspec G_GNUC_UNUSED
 )
 {
     GType value_type;
@@ -523,7 +523,7 @@ yaml_serializable_default_serialize_property(
 
 gboolean
 yaml_serializable_default_deserialize_property(
-    YamlSerializable *serializable,
+    YamlSerializable *serializable G_GNUC_UNUSED,
     const gchar      *property_name,
     GValue           *value,
     GParamSpec       *pspec,
