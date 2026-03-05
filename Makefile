@@ -252,7 +252,7 @@ lib-static: $(BUILDDIR)/$(LIB_STATIC)
 lib-shared: $(BUILDDIR)/$(LIB_SHARED)
 
 # Static library
-$(BUILDDIR)/$(LIB_STATIC): $(OBJECTS)
+$(BUILDDIR)/$(LIB_STATIC): $(OBJECTS) | $(BUILDDIR)
 	$(AR) rcs $@ $^
 	$(RANLIB) $@
 
@@ -285,7 +285,8 @@ yaml-glib-1.0.pc: yaml-glib-1.0.pc.in
 # Object File Rules
 #=============================================================================
 
-$(BUILDDIR)/%.o: $(SRCDIR)/%.c $(HEADERS)
+$(BUILDDIR)/%.o: $(SRCDIR)/%.c $(HEADERS) | $(BUILDDIR)
+	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 #=============================================================================
