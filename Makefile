@@ -252,9 +252,10 @@ lib-static: $(BUILDDIR)/$(LIB_STATIC)
 lib-shared: $(BUILDDIR)/$(LIB_SHARED)
 
 # Static library
+# ar rcs already includes the symbol index ('s' flag = ranlib), so the
+# separate ranlib call is redundant and causes issues on some toolchains.
 $(BUILDDIR)/$(LIB_STATIC): $(OBJECTS) | $(BUILDDIR)
 	$(AR) rcs $@ $^
-	$(RANLIB) $@
 
 # Shared library (platform-specific)
 ifeq ($(TARGET_PLATFORM),windows)
