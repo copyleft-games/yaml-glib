@@ -572,6 +572,7 @@ typedef struct
     YamlParser   *parser;
     GInputStream *stream;
     GByteArray   *data;
+    guchar        buffer[4096];
 } AsyncLoadData;
 
 static void
@@ -593,7 +594,6 @@ async_read_cb(GObject      *source,
     AsyncLoadData *load_data = g_task_get_task_data(task);
     GError *error = NULL;
     gssize bytes_read;
-    guchar buffer[4096];
 
     bytes_read = g_input_stream_read_finish(G_INPUT_STREAM(source),
                                             result, &error);
@@ -607,11 +607,12 @@ async_read_cb(GObject      *source,
 
     if (bytes_read > 0)
     {
-        g_byte_array_append(load_data->data, buffer, bytes_read);
+        g_byte_array_append(load_data->data, load_data->buffer, bytes_read);
 
-        /* Continue reading */
+        /* Continue reading into the heap-allocated buffer */
         g_input_stream_read_async(load_data->stream,
-                                   buffer, sizeof(buffer),
+                                   load_data->buffer,
+                                   sizeof(load_data->buffer),
                                    g_task_get_priority(task),
                                    g_task_get_cancellable(task),
                                    async_read_cb,
@@ -646,7 +647,6 @@ yaml_parser_load_from_stream_async(
 {
     GTask *task;
     AsyncLoadData *load_data;
-    guchar buffer[4096];
 
     g_return_if_fail(YAML_IS_PARSER(parser));
     g_return_if_fail(G_IS_INPUT_STREAM(stream));
@@ -661,8 +661,12 @@ yaml_parser_load_from_stream_async(
 
     g_task_set_task_data(task, load_data, (GDestroyNotify)async_load_data_free);
 
+    /* Read into the heap-allocated buffer in load_data to avoid
+     * use-after-return: stack buffers would be gone by the time
+     * the async callback fires. */
     g_input_stream_read_async(stream,
-                               buffer, sizeof(buffer),
+                               load_data->buffer,
+                               sizeof(load_data->buffer),
                                G_PRIORITY_DEFAULT,
                                cancellable,
                                async_read_cb,

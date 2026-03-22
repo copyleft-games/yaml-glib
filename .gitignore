@@ -7,6 +7,16 @@ build/
 *.so
 *.so.*
 
+# Dependency files
+*.d
+
+# Generated headers
+src/yaml-version.h
+
+# GObject Introspection
+*.gir
+*.typelib
+
 # Editor files
 *~
 *.swp
@@ -23,8 +33,8 @@ core
 core.*
 
 # Compiled test binaries
-test_*
-!tests/test_*.c
+test-*
+!tests/test-*.c
 
 # pkg-config generated
 *.pc

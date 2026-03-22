@@ -275,9 +275,8 @@ deserialize_gobject_internal(
     guint n_pspecs;
     guint i;
     guint n_construct_props = 0;
-    G_GNUC_BEGIN_IGNORE_DEPRECATIONS
-    GParameter *construct_params = NULL;
-    G_GNUC_END_IGNORE_DEPRECATIONS
+    const gchar **construct_names = NULL;
+    GValue *construct_values = NULL;
     gboolean is_serializable;
 
     if (yaml_node_get_node_type(node) != YAML_NODE_MAPPING)
@@ -291,7 +290,7 @@ deserialize_gobject_internal(
     pspecs = g_object_class_list_properties(klass, &n_pspecs);
 
     /*
-     * First pass: collect construct-only properties
+     * First pass: count construct-only properties present in the mapping
      */
     for (i = 0; i < n_pspecs; i++)
     {
@@ -311,9 +310,8 @@ deserialize_gobject_internal(
     {
         guint prop_idx = 0;
 
-        G_GNUC_BEGIN_IGNORE_DEPRECATIONS
-        construct_params = g_new0(GParameter, n_construct_props);
-        G_GNUC_END_IGNORE_DEPRECATIONS
+        construct_names = g_new0(const gchar *, n_construct_props);
+        construct_values = g_new0(GValue, n_construct_props);
 
         for (i = 0; i < n_pspecs && prop_idx < n_construct_props; i++)
         {
@@ -327,33 +325,38 @@ deserialize_gobject_internal(
             if (prop_node == NULL)
                 continue;
 
-            construct_params[prop_idx].name = pspec->name;
-            g_value_init(&construct_params[prop_idx].value,
+            construct_names[prop_idx] = pspec->name;
+            g_value_init(&construct_values[prop_idx],
                          G_PARAM_SPEC_VALUE_TYPE(pspec));
 
-            yaml_serializable_default_deserialize_property(
-                NULL,
-                pspec->name,
-                &construct_params[prop_idx].value,
-                pspec,
-                prop_node
-            );
+            if (!yaml_serializable_default_deserialize_property(
+                    NULL,
+                    pspec->name,
+                    &construct_values[prop_idx],
+                    pspec,
+                    prop_node))
+            {
+                /* Deserialization failed; reset to default value */
+                g_param_value_set_default(pspec, &construct_values[prop_idx]);
+            }
 
             prop_idx++;
         }
     }
 
     /* Create the object with construct properties */
-    G_GNUC_BEGIN_IGNORE_DEPRECATIONS
-    gobject = g_object_newv(gtype, n_construct_props, construct_params);
-    G_GNUC_END_IGNORE_DEPRECATIONS
+    gobject = g_object_new_with_properties(gtype,
+                                            n_construct_props,
+                                            construct_names,
+                                            construct_values);
 
     /* Clean up construct params */
     for (i = 0; i < n_construct_props; i++)
     {
-        g_value_unset(&construct_params[i].value);
+        g_value_unset(&construct_values[i]);
     }
-    g_free(construct_params);
+    g_free(construct_names);
+    g_free(construct_values);
 
     if (gobject == NULL)
     {

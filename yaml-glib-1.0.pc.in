@@ -7,5 +7,5 @@ Name: yaml-glib
 Description: GLib/GObject-based YAML parsing and generation library
 Version: @VERSION@
 Requires: glib-2.0 >= 2.56 gobject-2.0 >= 2.56 gio-2.0 >= 2.56 yaml-0.1 json-glib-1.0 >= 1.6
-Libs: -L${libdir} -lyaml-glib
+Libs: -L${libdir} -lyaml-glib-@API_VERSION@
 Cflags: -I${includedir}/yaml-glib

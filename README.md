@@ -16,6 +16,14 @@ A GLib/GObject-based YAML library for C, providing a high-level API for parsing,
 
 ## Requirements
 
+Install build dependencies automatically:
+
+```bash
+make install-deps
+```
+
+Or install manually:
+
 ### Fedora
 
 ```bash
@@ -34,20 +42,6 @@ sudo apt install gcc make libglib2.0-dev libyaml-dev libjson-glib-dev
 sudo pacman -S gcc make glib2 libyaml json-glib
 ```
 
-### Cross-Compilation for Windows (from Fedora)
-
-```bash
-sudo dnf install mingw64-gcc mingw64-glib2 mingw64-json-glib mingw64-libyaml
-```
-
-### Cross-Compilation for Linux ARM64 (from Fedora x86_64)
-
-```bash
-sudo dnf install gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
-    sysroot-aarch64-fc41-glibc qemu-user-static cpio
-sudo ./scripts/setup-arm64-sysroot.sh  # Adds glib2, libyaml, json-glib to sysroot
-```
-
 ## Quick Start
 
 ### Build
@@ -58,37 +52,22 @@ cd yaml-glib
 make
 ```
 
-### Cross-Compile for Windows
+### Build with Debug Symbols
 
 ```bash
-make WINDOWS=1
-make WINDOWS=1 tests examples
-```
-
-### Run Windows Tests with Wine
-
-```bash
-cd build
-WINEPATH="/usr/x86_64-w64-mingw32/sys-root/mingw/bin" wine test_node.exe
-```
-
-### Cross-Compile for Linux ARM64
-
-```bash
-make LINUX_ARM64=1
-make LINUX_ARM64=1 tests examples
-```
-
-### Run ARM64 Tests with QEMU
-
-```bash
-make LINUX_ARM64=1 check
+make DEBUG=1
 ```
 
 ### Run Tests
 
 ```bash
-make check
+make test
+```
+
+### Check Dependencies
+
+```bash
+make check-deps
 ```
 
 ### Install
@@ -96,6 +75,77 @@ make check
 ```bash
 sudo make install
 sudo ldconfig
+```
+
+### Cross-Compile for Windows
+
+```bash
+make WINDOWS=1
+```
+
+### Cross-Compile for Linux ARM64
+
+```bash
+make LINUX_ARM64=1
+make LINUX_ARM64=1 test
+```
+
+## Build System
+
+yaml-glib uses a three-file GNU Make build system:
+
+| File | Purpose |
+|------|---------|
+| `config.mk` | Configuration: project info, install dirs, build options, compiler flags, dependencies |
+| `rules.mk` | Build rules: compilation, linking, GIR generation, install, clean |
+| `Makefile` | Orchestration: source lists, object mappings, phony targets |
+
+### Build Targets
+
+| Target | Description |
+|--------|-------------|
+| `make` or `make all` | Build library and examples (release) |
+| `make lib` | Build static and shared libraries only |
+| `make test` | Build and run all tests |
+| `make examples` | Build example programs |
+| `make gir` | Generate GObject Introspection data (requires `BUILD_GIR=1`) |
+| `make install` | Install to PREFIX |
+| `make uninstall` | Remove installed files |
+| `make clean` | Remove build artifacts for current build type |
+| `make clean-all` | Remove all build artifacts |
+| `make show-config` | Display build configuration |
+| `make check-deps` | Check for required pkg-config dependencies |
+| `make install-deps` | Install build dependencies (auto-detects distro) |
+| `make help` | Show all available targets and options |
+
+### Build Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `DEBUG=1` | 0 | Enable debug build (`-g -O0`) |
+| `ASAN=1` | 0 | Enable AddressSanitizer |
+| `UBSAN=1` | 0 | Enable UndefinedBehaviorSanitizer |
+| `BUILD_GIR=1` | 0 | Enable GObject Introspection generation |
+| `BUILD_TESTS=0` | 1 | Disable test building |
+| `BUILD_EXAMPLES=0` | 1 | Disable example building |
+| `PREFIX=path` | /usr/local | Set installation prefix |
+| `WINDOWS=1` | 0 | Cross-compile for Windows x64 (MinGW) |
+| `LINUX_ARM64=1` | 0 | Cross-compile for Linux ARM64 |
+
+### Build Output
+
+Release builds go to `build/release/`, debug builds to `build/debug/`:
+
+```
+build/release/
+├── libyaml-glib-1.0.a           # Static library
+├── libyaml-glib-1.0.so.1.0.0    # Shared library
+├── libyaml-glib-1.0.so.1        # Soname symlink
+├── libyaml-glib-1.0.so          # Development symlink
+├── yaml-glib-1.0.pc             # pkg-config file
+├── obj/                          # Object files and .d dependency files
+├── examples/                     # Example binaries
+└── test-*                        # Test binaries
 ```
 
 ## Quick Example
@@ -136,8 +186,15 @@ main(int argc, char *argv[])
 
 ```bash
 gcc -o example example.c \
+    `pkg-config --cflags --libs yaml-glib-1.0`
+```
+
+Or if yaml-glib is not installed system-wide:
+
+```bash
+gcc -o example example.c \
     `pkg-config --cflags --libs glib-2.0 gobject-2.0 gio-2.0 yaml-0.1 json-glib-1.0` \
-    -lyaml-glib
+    -Ipath/to/yaml-glib/src -Lpath/to/yaml-glib/build/release -lyaml-glib-1.0
 ```
 
 ## Documentation

@@ -28,7 +28,7 @@ sudo apt install gcc libglib2.0-dev libyaml-dev libjson-glib-dev
 ### Building from Source
 
 ```bash
-git clone https://gitlab.com/your-repo/yaml-glib.git
+git clone https://gitlab.com/copyleft-games/yaml-glib.git
 cd yaml-glib
 make
 sudo make install
@@ -36,13 +36,14 @@ sudo make install
 
 This installs:
 - Headers to `/usr/local/include/yaml-glib/`
-- Shared library (`libyaml-glib.so.1.0.0`) to `/usr/local/lib/`
-- Static library (`libyaml-glib.a`) to `/usr/local/lib/`
+- Shared library (`libyaml-glib-1.0.so.1.0.0`) to `/usr/local/lib64/`
+- Static library (`libyaml-glib-1.0.a`) to `/usr/local/lib64/`
+- pkg-config file (`yaml-glib-1.0.pc`) to `/usr/local/lib64/pkgconfig/`
 
 ### Verifying Installation
 
 ```bash
-pkg-config --cflags --libs glib-2.0 gobject-2.0 gio-2.0 yaml-0.1 json-glib-1.0
+pkg-config --cflags --libs yaml-glib-1.0
 ```
 
 ## Core Concepts
@@ -502,15 +503,14 @@ notes: |
 
 CC = gcc
 CFLAGS = -std=gnu89 -Wall -Wextra -g \
-	`pkg-config --cflags glib-2.0 gobject-2.0 gio-2.0 yaml-0.1 json-glib-1.0`
+	`pkg-config --cflags yaml-glib-1.0`
 
-# Link against yaml-glib and its dependencies
-LDFLAGS = -L/usr/local/lib -lyaml-glib \
-	`pkg-config --libs glib-2.0 gobject-2.0 gio-2.0 yaml-0.1 json-glib-1.0`
+# Link against yaml-glib (pkg-config pulls in all dependencies)
+LDFLAGS = `pkg-config --libs yaml-glib-1.0`
 
 # For development against uninstalled library
-# CFLAGS += -I../src
-# LDFLAGS = -L../build -lyaml-glib ...
+# CFLAGS += -I../src `pkg-config --cflags glib-2.0 gobject-2.0 gio-2.0 yaml-0.1 json-glib-1.0`
+# LDFLAGS = -L../build/release -lyaml-glib-1.0 `pkg-config --libs glib-2.0 gobject-2.0 gio-2.0 yaml-0.1 json-glib-1.0`
 
 TARGET = example
 
@@ -520,7 +520,7 @@ $(TARGET): example.c
 	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
 
 run: $(TARGET)
-	LD_LIBRARY_PATH=/usr/local/lib:$$LD_LIBRARY_PATH ./$(TARGET)
+	LD_LIBRARY_PATH=/usr/local/lib64:$$LD_LIBRARY_PATH ./$(TARGET)
 
 clean:
 	rm -f $(TARGET)

@@ -8,6 +8,7 @@
  */
 
 #include <glib.h>
+#include <glib/gstdio.h>
 #include <string.h>
 #include "yaml-glib.h"
 
@@ -306,6 +307,185 @@ test_roundtrip(void)
     g_object_unref(generator);
 }
 
+/* Test builder null, double, and int value adds */
+static void
+test_builder_all_scalar_types(void)
+{
+    g_autoptr(YamlBuilder) builder = yaml_builder_new();
+    YamlNode *root;
+    YamlMapping *mapping;
+
+    yaml_builder_begin_mapping(builder);
+
+    yaml_builder_set_member_name(builder, "null_val");
+    yaml_builder_add_null_value(builder);
+
+    yaml_builder_set_member_name(builder, "double_val");
+    yaml_builder_add_double_value(builder, 3.14);
+
+    yaml_builder_set_member_name(builder, "int_val");
+    yaml_builder_add_int_value(builder, 42);
+
+    yaml_builder_set_member_name(builder, "str_val");
+    yaml_builder_add_string_value(builder, "hello");
+
+    yaml_builder_set_member_name(builder, "bool_val");
+    yaml_builder_add_boolean_value(builder, TRUE);
+
+    yaml_builder_end_mapping(builder);
+
+    root = yaml_builder_get_root(builder);
+    g_assert_nonnull(root);
+    mapping = yaml_node_get_mapping(root);
+
+    /* Verify null */
+    YamlNode *null_node = yaml_mapping_get_member(mapping, "null_val");
+    g_assert_nonnull(null_node);
+    g_assert_true(yaml_node_is_null(null_node));
+
+    /* Verify double */
+    g_assert_cmpfloat_with_epsilon(
+        yaml_mapping_get_double_member(mapping, "double_val"), 3.14, 0.001);
+
+    /* Verify int */
+    g_assert_cmpint(yaml_mapping_get_int_member(mapping, "int_val"), ==, 42);
+
+    /* Verify string */
+    g_assert_cmpstr(yaml_mapping_get_string_member(mapping, "str_val"),
+                    ==, "hello");
+
+    /* Verify bool */
+    g_assert_true(yaml_mapping_get_boolean_member(mapping, "bool_val"));
+}
+
+/* Test steal_root transfers ownership from builder */
+static void
+test_builder_steal_root(void)
+{
+    g_autoptr(YamlBuilder) builder = yaml_builder_new();
+
+    yaml_builder_begin_mapping(builder);
+    yaml_builder_set_member_name(builder, "key");
+    yaml_builder_add_string_value(builder, "value");
+    yaml_builder_end_mapping(builder);
+
+    YamlNode *stolen = yaml_builder_steal_root(builder);
+    g_assert_nonnull(stolen);
+
+    /* After steal, get_root should return NULL */
+    g_assert_null(yaml_builder_get_root(builder));
+
+    yaml_node_unref(stolen);
+}
+
+/* Test get_document from builder */
+static void
+test_builder_get_document(void)
+{
+    g_autoptr(YamlBuilder) builder = yaml_builder_new();
+
+    yaml_builder_begin_mapping(builder);
+    yaml_builder_set_member_name(builder, "key");
+    yaml_builder_add_string_value(builder, "value");
+    yaml_builder_end_mapping(builder);
+
+    YamlDocument *doc = yaml_builder_get_document(builder);
+    g_assert_nonnull(doc);
+
+    YamlNode *root = yaml_document_get_root(doc);
+    g_assert_nonnull(root);
+    g_assert_cmpint(yaml_node_get_node_type(root), ==, YAML_NODE_MAPPING);
+}
+
+/* Test add_value embeds an existing node */
+static void
+test_builder_add_value(void)
+{
+    g_autoptr(YamlBuilder) builder = yaml_builder_new();
+    g_autoptr(YamlNode) existing = yaml_node_new_string("existing");
+
+    yaml_builder_begin_mapping(builder);
+    yaml_builder_set_member_name(builder, "embedded");
+    yaml_builder_add_value(builder, existing);
+    yaml_builder_end_mapping(builder);
+
+    YamlNode *root = yaml_builder_get_root(builder);
+    YamlMapping *mapping = yaml_node_get_mapping(root);
+    g_assert_cmpstr(yaml_mapping_get_string_member(mapping, "embedded"),
+                    ==, "existing");
+}
+
+/* Test generator to_file */
+static void
+test_generator_to_file(void)
+{
+    g_autoptr(YamlBuilder) builder = yaml_builder_new();
+    g_autoptr(YamlGenerator) generator = yaml_generator_new();
+    g_autoptr(GError) error = NULL;
+    g_autofree gchar *tmpfile = NULL;
+    g_autofree gchar *contents = NULL;
+    gsize length;
+    gint fd;
+
+    yaml_builder_begin_mapping(builder);
+    yaml_builder_set_member_name(builder, "key");
+    yaml_builder_add_string_value(builder, "value");
+    yaml_builder_end_mapping(builder);
+
+    yaml_generator_set_root(generator, yaml_builder_get_root(builder));
+
+    fd = g_file_open_tmp("yaml-gen-XXXXXX", &tmpfile, &error);
+    g_assert_no_error(error);
+    close(fd);
+
+    g_assert_true(yaml_generator_to_file(generator, tmpfile, &error));
+    g_assert_no_error(error);
+
+    /* Read back and verify */
+    g_assert_true(g_file_get_contents(tmpfile, &contents, &length, &error));
+    g_assert_nonnull(strstr(contents, "key"));
+    g_assert_nonnull(strstr(contents, "value"));
+
+    g_unlink(tmpfile);
+}
+
+/* Test generator explicit start/end markers in output */
+static void
+test_generator_explicit_markers(void)
+{
+    g_autoptr(YamlBuilder) builder = yaml_builder_new();
+    g_autoptr(YamlGenerator) generator = yaml_generator_new();
+    g_autoptr(GError) error = NULL;
+
+    yaml_builder_begin_mapping(builder);
+    yaml_builder_set_member_name(builder, "key");
+    yaml_builder_add_string_value(builder, "value");
+    yaml_builder_end_mapping(builder);
+
+    yaml_generator_set_root(generator, yaml_builder_get_root(builder));
+    yaml_generator_set_explicit_start(generator, TRUE);
+    yaml_generator_set_explicit_end(generator, TRUE);
+
+    g_autofree gchar *output = yaml_generator_to_data(generator, NULL, &error);
+    g_assert_no_error(error);
+    g_assert_nonnull(output);
+
+    /* Output should start with --- and end with ... */
+    g_assert_nonnull(strstr(output, "---"));
+    g_assert_nonnull(strstr(output, "..."));
+}
+
+/* Test generator get_root returns what was set */
+static void
+test_generator_get_root(void)
+{
+    g_autoptr(YamlNode) node = yaml_node_new_string("hello");
+    g_autoptr(YamlGenerator) generator = yaml_generator_new();
+
+    yaml_generator_set_root(generator, node);
+    g_assert_true(yaml_generator_get_root(generator) == node);
+}
+
 int
 main(
     int   argc,
@@ -321,10 +501,18 @@ main(
     g_test_add_func("/builder/chaining", test_builder_chaining);
     g_test_add_func("/builder/reset", test_builder_reset);
     g_test_add_func("/builder/immutable", test_builder_immutable);
+    g_test_add_func("/builder/all_scalar_types", test_builder_all_scalar_types);
+    g_test_add_func("/builder/steal_root", test_builder_steal_root);
+    g_test_add_func("/builder/get_document", test_builder_get_document);
+    g_test_add_func("/builder/add_value", test_builder_add_value);
 
     /* Generator tests */
     g_test_add_func("/generator/basic", test_generator_basic);
     g_test_add_func("/generator/config", test_generator_config);
+    g_test_add_func("/generator/to_file", test_generator_to_file);
+    g_test_add_func("/generator/explicit_markers",
+                    test_generator_explicit_markers);
+    g_test_add_func("/generator/get_root", test_generator_get_root);
 
     /* Integration tests */
     g_test_add_func("/integration/roundtrip", test_roundtrip);

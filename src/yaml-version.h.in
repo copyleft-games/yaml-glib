@@ -1,0 +1,59 @@
+/* yaml-version.h.in
+ *
+ * Copyright 2025 Zach Podbielniak
+ *
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ *
+ * Generated version header for yaml-glib.
+ * Do not edit — this file is generated from yaml-version.h.in by make.
+ */
+
+#ifndef YAML_VERSION_H
+#define YAML_VERSION_H
+
+/**
+ * YAML_GLIB_VERSION_MAJOR:
+ *
+ * The major version number of the yaml-glib library.
+ */
+#define YAML_GLIB_VERSION_MAJOR (@YAML_GLIB_VERSION_MAJOR@)
+
+/**
+ * YAML_GLIB_VERSION_MINOR:
+ *
+ * The minor version number of the yaml-glib library.
+ */
+#define YAML_GLIB_VERSION_MINOR (@YAML_GLIB_VERSION_MINOR@)
+
+/**
+ * YAML_GLIB_VERSION_MICRO:
+ *
+ * The micro (patch) version number of the yaml-glib library.
+ */
+#define YAML_GLIB_VERSION_MICRO (@YAML_GLIB_VERSION_MICRO@)
+
+/**
+ * YAML_GLIB_VERSION:
+ *
+ * The full version string of the yaml-glib library.
+ */
+#define YAML_GLIB_VERSION "@YAML_GLIB_VERSION@"
+
+/**
+ * YAML_GLIB_CHECK_VERSION:
+ * @major: the major version to check for
+ * @minor: the minor version to check for
+ * @micro: the micro version to check for
+ *
+ * Checks whether the yaml-glib library version is at least the
+ * requested version.
+ *
+ * Returns: %TRUE if the library version is >= the requested version
+ */
+#define YAML_GLIB_CHECK_VERSION(major, minor, micro) \
+    (YAML_GLIB_VERSION_MAJOR > (major) || \
+     (YAML_GLIB_VERSION_MAJOR == (major) && YAML_GLIB_VERSION_MINOR > (minor)) || \
+     (YAML_GLIB_VERSION_MAJOR == (major) && YAML_GLIB_VERSION_MINOR == (minor) && \
+      YAML_GLIB_VERSION_MICRO >= (micro)))
+
+#endif /* YAML_VERSION_H */

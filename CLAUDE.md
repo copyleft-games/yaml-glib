@@ -4,9 +4,14 @@
 
 ```
 yaml-glib/
+├── Makefile                # Orchestration: source lists, targets
+├── config.mk              # Configuration: project info, dirs, flags, deps
+├── rules.mk               # Build rules: compilation, linking, install
+├── yaml-glib-1.0.pc.in    # pkg-config template
 ├── src/                    # Library source files
 │   ├── yaml-glib.h         # Main umbrella header
 │   ├── yaml-types.h        # Enumerations and error codes
+│   ├── yaml-version.h.in   # Version header template (generates yaml-version.h)
 │   ├── yaml-node.{h,c}     # YamlNode boxed type
 │   ├── yaml-mapping.{h,c}  # YamlMapping boxed type
 │   ├── yaml-sequence.{h,c} # YamlSequence boxed type
@@ -18,10 +23,14 @@ yaml-glib/
 │   ├── yaml-serializable.{h,c}  # YamlSerializable interface
 │   ├── yaml-gobject.{h,c}  # GObject serialization utilities
 │   └── yaml-private.h      # Internal structures (not installed)
-├── tests/                  # Test files (test_*.c)
+├── tests/                  # Test files (test-*.c)
+├── examples/               # Example programs
 ├── build/                  # Build output (created by make)
+│   ├── debug/              # Debug build (-g -O0)
+│   │   └── obj/            # Object files and .d dependency files
+│   └── release/            # Release build (-O2)
+│       └── obj/
 ├── docs/                   # Documentation (markdown)
-├── Makefile                # GNU Make build file
 ├── README.md               # Project overview
 └── CLAUDE.md               # This file
 ```
@@ -203,11 +212,21 @@ yaml_document_set_root(doc, node);
 ## Build Commands
 
 ```bash
-make              # Build shared and static libraries
-make tests        # Build test executables
-make check        # Build and run all tests
-make install      # Install to /usr/local
-make clean        # Remove build artifacts
+make              # Build library and examples (release)
+make DEBUG=1      # Build with debug symbols (-g -O0)
+make lib          # Build static and shared libraries only
+make test         # Build and run all tests
+make examples     # Build example programs
+make gir          # Generate GIR/typelib (requires BUILD_GIR=1)
+make install      # Install to PREFIX (/usr/local)
+make uninstall    # Remove installed files
+make clean        # Remove build artifacts for current build type
+make clean-all    # Remove all build artifacts
+make show-config  # Display build configuration
+make check-deps   # Check pkg-config dependencies
+make install-deps # Install build dependencies (auto-detects distro)
+make help         # Show all available targets and options
+make ASAN=1 DEBUG=1 test  # Run tests with AddressSanitizer
 ```
 
 ## Testing
@@ -234,7 +253,9 @@ main(int argc, char *argv[])
 }
 ```
 
-Run tests: `make check`
+Run tests: `make test`
+
+Test files follow `test-*.c` naming convention (e.g., `tests/test-node.c`).
 
 ## Key Files to Understand
 

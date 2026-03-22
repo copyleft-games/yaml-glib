@@ -8,6 +8,8 @@
  */
 
 #include <glib.h>
+#include <glib/gstdio.h>
+#include <unistd.h>
 #include "yaml-glib.h"
 
 /* Test parsing a simple mapping */
@@ -247,6 +249,202 @@ test_parser_error(void)
     g_object_unref(parser);
 }
 
+/* Test dup_root returns a new reference */
+static void
+test_parser_dup_root(void)
+{
+    g_autoptr(YamlParser) parser = yaml_parser_new();
+    g_autoptr(GError) error = NULL;
+    const gchar *yaml = "key: value\n";
+
+    g_assert_true(yaml_parser_load_from_data(parser, yaml, -1, &error));
+
+    /* dup_root gives us an owned reference */
+    YamlNode *duped = yaml_parser_dup_root(parser);
+    g_assert_nonnull(duped);
+    g_assert_cmpint(yaml_node_get_node_type(duped), ==, YAML_NODE_MAPPING);
+    yaml_node_unref(duped);
+}
+
+/* Test steal_root transfers ownership */
+static void
+test_parser_steal_root(void)
+{
+    g_autoptr(YamlParser) parser = yaml_parser_new();
+    g_autoptr(GError) error = NULL;
+    const gchar *yaml = "key: value\n";
+
+    g_assert_true(yaml_parser_load_from_data(parser, yaml, -1, &error));
+
+    YamlNode *stolen = yaml_parser_steal_root(parser);
+    g_assert_nonnull(stolen);
+
+    /* After steal, get_root should return NULL */
+    g_assert_null(yaml_parser_get_root(parser));
+
+    yaml_node_unref(stolen);
+}
+
+/* Test dup_document returns an owned reference */
+static void
+test_parser_dup_document(void)
+{
+    g_autoptr(YamlParser) parser = yaml_parser_new();
+    g_autoptr(GError) error = NULL;
+    const gchar *yaml = "hello: world\n";
+
+    g_assert_true(yaml_parser_load_from_data(parser, yaml, -1, &error));
+    g_assert_cmpuint(yaml_parser_get_n_documents(parser), ==, 1);
+
+    /* dup_document gives owned ref */
+    YamlDocument *duped = yaml_parser_dup_document(parser, 0);
+    g_assert_nonnull(duped);
+
+    YamlNode *root = yaml_document_get_root(duped);
+    g_assert_nonnull(root);
+    g_assert_cmpint(yaml_node_get_node_type(root), ==, YAML_NODE_MAPPING);
+
+    g_object_unref(duped);
+}
+
+/* Test set_immutable on an existing parser */
+static void
+test_parser_set_immutable(void)
+{
+    g_autoptr(YamlParser) parser = yaml_parser_new();
+    g_autoptr(GError) error = NULL;
+    const gchar *yaml = "key: value\n";
+
+    g_assert_false(yaml_parser_get_immutable(parser));
+    yaml_parser_set_immutable(parser, TRUE);
+    g_assert_true(yaml_parser_get_immutable(parser));
+
+    g_assert_true(yaml_parser_load_from_data(parser, yaml, -1, &error));
+
+    /* Document should be sealed */
+    YamlDocument *doc = yaml_parser_get_document(parser, 0);
+    g_assert_true(yaml_document_is_immutable(doc));
+}
+
+/* Test parsing empty input */
+static void
+test_parser_empty_input(void)
+{
+    g_autoptr(YamlParser) parser = yaml_parser_new();
+    g_autoptr(GError) error = NULL;
+
+    /* Empty string should succeed but produce no documents */
+    g_assert_true(yaml_parser_load_from_data(parser, "", 0, &error));
+    g_assert_no_error(error);
+    g_assert_cmpuint(yaml_parser_get_n_documents(parser), ==, 0);
+    g_assert_null(yaml_parser_get_root(parser));
+}
+
+/* Test parsing with explicit length (not -1) */
+static void
+test_parser_explicit_length(void)
+{
+    g_autoptr(YamlParser) parser = yaml_parser_new();
+    g_autoptr(GError) error = NULL;
+    /* String is longer, but we only pass 10 bytes: "key: value" */
+    const gchar *yaml = "key: value\nextra: data\n";
+
+    g_assert_true(yaml_parser_load_from_data(parser, yaml, 10, &error));
+    g_assert_no_error(error);
+
+    YamlNode *root = yaml_parser_get_root(parser);
+    g_assert_nonnull(root);
+}
+
+/* Test file I/O parsing */
+static void
+test_parser_load_from_file(void)
+{
+    g_autoptr(YamlParser) parser = yaml_parser_new();
+    g_autoptr(GError) error = NULL;
+    g_autofree gchar *tmpfile = NULL;
+    gint fd;
+    const gchar *yaml = "name: test\nvalue: 42\n";
+
+    /* Write YAML to a temp file */
+    fd = g_file_open_tmp("yaml-test-XXXXXX", &tmpfile, &error);
+    g_assert_no_error(error);
+    g_assert_cmpint(write(fd, yaml, strlen(yaml)), ==, (gssize)strlen(yaml));
+    close(fd);
+
+    g_assert_true(yaml_parser_load_from_file(parser, tmpfile, &error));
+    g_assert_no_error(error);
+
+    YamlNode *root = yaml_parser_get_root(parser);
+    g_assert_nonnull(root);
+    g_assert_cmpint(yaml_node_get_node_type(root), ==, YAML_NODE_MAPPING);
+
+    YamlMapping *mapping = yaml_node_get_mapping(root);
+    g_assert_cmpstr(yaml_mapping_get_string_member(mapping, "name"), ==, "test");
+    g_assert_cmpint(yaml_mapping_get_int_member(mapping, "value"), ==, 42);
+
+    g_unlink(tmpfile);
+}
+
+/* Test file I/O with nonexistent file */
+static void
+test_parser_load_from_file_not_found(void)
+{
+    g_autoptr(YamlParser) parser = yaml_parser_new();
+    GError *error = NULL;
+
+    g_assert_false(yaml_parser_load_from_file(parser,
+                   "/nonexistent/path/file.yaml", &error));
+    g_assert_nonnull(error);
+    g_error_free(error);
+}
+
+/* Test various error conditions */
+static void
+test_parser_error_tab_indentation(void)
+{
+    g_autoptr(YamlParser) parser = yaml_parser_new();
+    GError *error = NULL;
+    /* Tabs in indentation are invalid YAML */
+    const gchar *yaml = "key:\n\t- invalid\n";
+
+    gboolean result = yaml_parser_load_from_data(parser, yaml, -1, &error);
+    /* libyaml may or may not reject tabs; just verify it doesn't crash */
+    if (!result)
+    {
+        g_assert_nonnull(error);
+        g_error_free(error);
+    }
+}
+
+/* Test parsing null/tilde values */
+static void
+test_parser_null_values(void)
+{
+    g_autoptr(YamlParser) parser = yaml_parser_new();
+    g_autoptr(GError) error = NULL;
+    const gchar *yaml =
+        "null1: null\n"
+        "null2: ~\n"
+        "null3:\n";
+
+    g_assert_true(yaml_parser_load_from_data(parser, yaml, -1, &error));
+    YamlNode *root = yaml_parser_get_root(parser);
+    YamlMapping *mapping = yaml_node_get_mapping(root);
+
+    /* All three should be null nodes */
+    YamlNode *n1 = yaml_mapping_get_member(mapping, "null1");
+    YamlNode *n2 = yaml_mapping_get_member(mapping, "null2");
+    YamlNode *n3 = yaml_mapping_get_member(mapping, "null3");
+
+    g_assert_nonnull(n1);
+    g_assert_nonnull(n2);
+    g_assert_nonnull(n3);
+    g_assert_true(yaml_node_is_null(n1));
+    g_assert_true(yaml_node_is_null(n2));
+    g_assert_true(yaml_node_is_null(n3));
+}
+
 int
 main(
     int   argc,
@@ -263,6 +461,18 @@ main(
     g_test_add_func("/parser/reset", test_parser_reset);
     g_test_add_func("/parser/scalar_types", test_parser_scalar_types);
     g_test_add_func("/parser/error", test_parser_error);
+    g_test_add_func("/parser/dup_root", test_parser_dup_root);
+    g_test_add_func("/parser/steal_root", test_parser_steal_root);
+    g_test_add_func("/parser/dup_document", test_parser_dup_document);
+    g_test_add_func("/parser/set_immutable", test_parser_set_immutable);
+    g_test_add_func("/parser/empty_input", test_parser_empty_input);
+    g_test_add_func("/parser/explicit_length", test_parser_explicit_length);
+    g_test_add_func("/parser/load_from_file", test_parser_load_from_file);
+    g_test_add_func("/parser/load_from_file_not_found",
+                    test_parser_load_from_file_not_found);
+    g_test_add_func("/parser/error_tab_indentation",
+                    test_parser_error_tab_indentation);
+    g_test_add_func("/parser/null_values", test_parser_null_values);
 
     return g_test_run();
 }
