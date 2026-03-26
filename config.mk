@@ -21,9 +21,14 @@ API_VERSION := 1.0
 PREFIX ?= /usr/local
 BINDIR ?= $(PREFIX)/bin
 
-# Auto-detect lib vs lib64 for 64-bit systems (Fedora, RHEL, SUSE, etc.)
+# Auto-detect lib vs lib64 for 64-bit systems
+# Debian/Ubuntu always use lib (even if /usr/lib64 exists as a symlink)
+# Fedora/RHEL/SUSE use lib64 for 64-bit libraries
 # Override with: make LIBDIR=/usr/local/lib
-LIBDIR_SUFFIX := $(shell if [ -d /usr/lib64 ]; then echo lib64; else echo lib; fi)
+LIBDIR_SUFFIX := $(shell \
+    if [ -f /etc/debian_version ]; then echo lib; \
+    elif [ -d /usr/lib64 ]; then echo lib64; \
+    else echo lib; fi)
 LIBDIR ?= $(PREFIX)/$(LIBDIR_SUFFIX)
 
 INCLUDEDIR ?= $(PREFIX)/include
