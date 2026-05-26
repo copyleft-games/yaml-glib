@@ -1,0 +1,103 @@
+* yaml-glib Documentation
+*yaml-glib* is a GObject-based YAML library for C that provides comprehensive YAML parsing, generation, and manipulation capabilities with full GLib/GObject integration.
+
+** Features
+- *Full YAML 1.1 Support* - Parse and generate compliant YAML documents using libyaml
+- *GObject Integration* - Proper GObject types with properties, signals, and introspection support
+- *Reference-Counted Types* - YamlNode, YamlMapping, and YamlSequence use reference counting for safe memory management
+- *JSON-GLib Interoperability* - Bidirectional conversion between YAML and JSON-GLib types
+- *GObject Serialization* - Serialize and deserialize GObjects to/from YAML
+- *Schema Validation* - Validate YAML documents against schemas with detailed error reporting
+- *Async I/O* - Full async support using GIO patterns (GTask, GAsyncResult)
+- *Immutability Support* - Seal nodes for thread-safe sharing
+- *Multi-Document Support* - Parse and generate YAML streams with multiple documents
+
+** Quick Example
+#+begin_src C
+#include <yaml-glib.h>
+
+int main(void)
+{
+    YamlParser *parser;
+    YamlNode *root;
+    YamlMapping *mapping;
+    GError *error = NULL;
+
+    /* Parse YAML from a string */
+    parser = yaml_parser_new();
+    if (!yaml_parser_load_from_data(parser, "name: John\nage: 30\n", -1, &error))
+    {
+        g_printerr("Parse error: %s\n", error->message);
+        g_error_free(error);
+        return 1;
+    }
+
+    /* Access the data */
+    root = yaml_parser_get_root(parser);
+    mapping = yaml_node_get_mapping(root);
+
+    g_print("Name: %s\n", yaml_mapping_get_string_member(mapping, "name"));
+    g_print("Age: %ld\n", yaml_mapping_get_int_member(mapping, "age"));
+
+    g_object_unref(parser);
+    return 0;
+}
+#+end_src
+
+** Documentation Structure
+*** Getting Started
+- [[file:getting-started.org][Getting Started]] - Installation, first program, basic concepts
+- [[file:building.org][Building]] - Build instructions and dependencies
+- [[file:memory-management.org][Memory Management]] - Reference counting and ownership patterns
+- [[file:error-handling.org][Error Handling]] - Error domains and GError usage
+
+*** API Reference
+Core types and containers:
+
+- [[file:api/types.org][Types]] - Enumerations, error codes, and type definitions
+- [[file:api/node.org][YamlNode]] - Generic container for YAML data
+- [[file:api/mapping.org][YamlMapping]] - Key-value pair container (like JSON object)
+- [[file:api/sequence.org][YamlSequence]] - Ordered array container (like JSON array)
+- [[file:api/document.org][YamlDocument]] - Top-level document with directives
+
+Parsing and generation:
+
+- [[file:api/parser.org][YamlParser]] - Parse YAML from files, strings, or streams
+- [[file:api/builder.org][YamlBuilder]] - Fluent API for building YAML structures
+- [[file:api/generator.org][YamlGenerator]] - Generate YAML output
+
+Advanced features:
+
+- [[file:api/serializable.org][YamlSerializable]] - Interface for custom GObject serialization
+- [[file:api/gobject.org][GObject Utilities]] - GObject and boxed type serialization
+- [[file:api/schema.org][YamlSchema]] - Schema validation
+
+*** Guides
+- [[file:guides/parsing.org][Parsing YAML]] - Complete guide to parsing YAML data
+- [[file:guides/building-yaml.org][Building YAML]] - Programmatically constructing YAML
+- [[file:guides/json-interop.org][JSON Interoperability]] - Converting between YAML and JSON-GLib
+- [[file:guides/gobject-serialization.org][GObject Serialization]] - Serializing GObjects to YAML
+- [[file:guides/schema-validation.org][Schema Validation]] - Validating YAML with schemas
+- [[file:guides/async-io.org][Async I/O]] - Asynchronous parsing and generation
+
+** Type Overview
+| Type               | Kind                | Description                            |
+|--------------------+---------------------+----------------------------------------|
+| =YamlNode=         | Boxed (ref-counted) | Generic container for any YAML value   |
+| =YamlMapping=      | Boxed (ref-counted) | Key-value pairs with string keys       |
+| =YamlSequence=     | Boxed (ref-counted) | Ordered array of nodes                 |
+| =YamlDocument=     | GObject             | Document with root node and directives |
+| =YamlParser=       | GObject             | Parses YAML from various sources       |
+| =YamlBuilder=      | GObject             | Fluent API for constructing YAML       |
+| =YamlGenerator=    | GObject             | Generates YAML output                  |
+| =YamlSchema=       | GObject             | Schema for validation                  |
+| =YamlSerializable= | GInterface          | Custom serialization interface         |
+
+** License
+yaml-glib is licensed under the AGPL-3.0-or-later license.
+
+** See Also
+- [[https://pyyaml.org/wiki/LibYAML][libyaml]] - The underlying YAML parser/emitter
+- [[https://gnome.pages.gitlab.gnome.org/json-glib/][JSON-GLib]] - Similar library for JSON
+- [[https://docs.gtk.org/glib/][GLib Reference]] - GLib documentation
+- [[https://docs.gtk.org/gobject/][GObject Reference]] - GObject documentation

@@ -1,21 +1,17 @@
-# Async I/O Guide
-
+* Async I/O Guide
 This guide covers asynchronous parsing and generation using yaml-glib with GIO's async patterns.
 
-## Overview
-
+** Overview
 yaml-glib provides async operations for:
 
-- **Parsing** from streams and GFile objects
-- **Generating** to streams and GFile objects
+- *Parsing* from streams and GFile objects
+- *Generating* to streams and GFile objects
 
-Async operations use GLib's `GTask` pattern with `GAsyncReadyCallback` callbacks.
+Async operations use GLib's =GTask= pattern with =GAsyncReadyCallback= callbacks.
 
-## Async Parsing
-
-### From GFile
-
-```c
+** Async Parsing
+*** From GFile
+#+begin_src C
 #include <yaml-glib/yaml-glib.h>
 
 static void
@@ -59,11 +55,10 @@ parse_file_async(const gchar *path)
     g_main_loop_run(loop);
     g_main_loop_unref(loop);
 }
-```
+#+end_src
 
-### From Stream
-
-```c
+*** From Stream
+#+begin_src C
 static void
 on_stream_parse_complete(GObject      *source,
                          GAsyncResult *result,
@@ -95,13 +90,11 @@ parse_stream_async(GInputStream *stream)
         NULL                         /* user_data */
     );
 }
-```
+#+end_src
 
-## Async Generation
-
-### To GFile
-
-```c
+** Async Generation
+*** To GFile
+#+begin_src C
 static void
 on_write_complete(GObject      *source,
                   GAsyncResult *result,
@@ -136,11 +129,10 @@ write_file_async(YamlNode *root, const gchar *path)
         NULL
     );
 }
-```
+#+end_src
 
-### To Stream
-
-```c
+*** To Stream
+#+begin_src C
 static void
 on_stream_write_complete(GObject      *source,
                          GAsyncResult *result,
@@ -174,13 +166,12 @@ write_stream_async(YamlNode      *root,
         NULL
     );
 }
-```
+#+end_src
 
-## Cancellation
+** Cancellation
+Use =GCancellable= to cancel async operations:
 
-Use `GCancellable` to cancel async operations:
-
-```c
+#+begin_src C
 typedef struct {
     YamlParser   *parser;
     GCancellable *cancellable;
@@ -241,13 +232,12 @@ parse_with_timeout(const gchar *path, guint timeout_seconds)
     g_main_loop_run(loop);
     g_main_loop_unref(loop);
 }
-```
+#+end_src
 
-## Integration with GTask
-
+** Integration with GTask
 For custom async operations using yaml-glib:
 
-```c
+#+begin_src C
 typedef struct {
     gchar *filename;
     YamlNode *result;
@@ -336,13 +326,12 @@ on_config_loaded(GObject      *source,
 
     g_print("Config loaded!\n");
 }
-```
+#+end_src
 
-## Network File Loading
-
+** Network File Loading
 Load YAML from a remote source:
 
-```c
+#+begin_src C
 static void
 on_remote_loaded(GObject      *source,
                  GAsyncResult *result,
@@ -372,13 +361,12 @@ load_remote_config(const gchar *uri)
         on_remote_loaded, parser
     );
 }
-```
+#+end_src
 
-## Batch Processing
-
+** Batch Processing
 Process multiple files asynchronously:
 
-```c
+#+begin_src C
 typedef struct {
     gchar   **files;
     guint     n_files;
@@ -454,11 +442,10 @@ batch_parse_files(gchar **files, guint n_files)
     g_main_loop_run(ctx.loop);
     g_main_loop_unref(ctx.loop);
 }
-```
+#+end_src
 
-## Complete Example
-
-```c
+** Complete Example
+#+begin_src C
 #include <yaml-glib/yaml-glib.h>
 
 typedef struct {
@@ -565,19 +552,17 @@ main(int argc, char *argv[])
 
     return 0;
 }
-```
+#+end_src
 
-## Best Practices
+** Best Practices
+1. *Use g_autoptr* for automatic cleanup of GLib objects
+2. *Check for cancellation* in long-running operations
+3. *Handle errors* in finish callbacks
+4. *Steal nodes* if you need them after the parser is freed
+5. *Use GTask* for custom async operations that involve yaml-glib
 
-1. **Use g_autoptr** for automatic cleanup of GLib objects
-2. **Check for cancellation** in long-running operations
-3. **Handle errors** in finish callbacks
-4. **Steal nodes** if you need them after the parser is freed
-5. **Use GTask** for custom async operations that involve yaml-glib
-
-## See Also
-
-- [YamlParser API](../api/parser.md) - Async parsing functions
-- [YamlGenerator API](../api/generator.md) - Async generation functions
-- [Parsing Guide](parsing.md) - Synchronous parsing
-- [GIO Async Documentation](https://docs.gtk.org/gio/concepts.html#async-io)
+** See Also
+- [[../api/parser.org][YamlParser API]] - Async parsing functions
+- [[../api/generator.org][YamlGenerator API]] - Async generation functions
+- [[file:parsing.org][Parsing Guide]] - Synchronous parsing
+- [[https://docs.gtk.org/gio/concepts.html#async-io][GIO Async Documentation]]

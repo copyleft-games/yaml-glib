@@ -1,23 +1,19 @@
-# GObject Serialization Guide
-
+* GObject Serialization Guide
 This guide covers serializing GObjects to YAML and deserializing YAML back to GObjects.
 
-## Overview
-
+** Overview
 yaml-glib provides comprehensive GObject serialization:
 
-- **Automatic serialization** of GObject properties
-- **YamlSerializable interface** for custom serialization logic
-- **Boxed type registration** for custom value types
-- **Nested object support** for complex hierarchies
+- *Automatic serialization* of GObject properties
+- *YamlSerializable interface* for custom serialization logic
+- *Boxed type registration* for custom value types
+- *Nested object support* for complex hierarchies
 
-## Basic Serialization
-
-### Serializing a GObject
-
+** Basic Serialization
+*** Serializing a GObject
 Any GObject with readable properties can be serialized:
 
-```c
+#+begin_src C
 #include <yaml-glib/yaml-glib.h>
 
 void
@@ -30,11 +26,10 @@ serialize_example(GObject *object)
     /* Or serialize to a node for further processing */
     g_autoptr(YamlNode) node = yaml_gobject_serialize(object);
 }
-```
+#+end_src
 
-### Deserializing to a GObject
-
-```c
+*** Deserializing to a GObject
+#+begin_src C
 GObject *
 deserialize_example(const gchar *yaml_str, GType object_type)
 {
@@ -52,13 +47,11 @@ deserialize_example(const gchar *yaml_str, GType object_type)
 
     return object;
 }
-```
+#+end_src
 
-## Creating a Serializable GObject
-
-### Simple GObject
-
-```c
+** Creating a Serializable GObject
+*** Simple GObject
+#+begin_src C
 #include <yaml-glib/yaml-glib.h>
 
 /* Type declaration */
@@ -171,11 +164,10 @@ static void
 my_person_init(MyPerson *self)
 {
 }
-```
+#+end_src
 
-### Usage
-
-```c
+*** Usage
+#+begin_src C
 void
 example_usage(void)
 {
@@ -205,15 +197,13 @@ example_usage(void)
     MyPerson *bob = MY_PERSON(loaded);
     g_print("Loaded: %s, %d\n", bob->name, bob->age);
 }
-```
+#+end_src
 
-## Implementing YamlSerializable
+** Implementing YamlSerializable
+For custom serialization behavior, implement the =YamlSerializable= interface.
 
-For custom serialization behavior, implement the `YamlSerializable` interface.
-
-### Interface Implementation
-
-```c
+*** Interface Implementation
+#+begin_src C
 /* Forward declaration */
 static void my_config_serializable_init(YamlSerializableInterface *iface);
 
@@ -325,15 +315,13 @@ my_config_serializable_init(YamlSerializableInterface *iface)
     iface->deserialize_property = my_config_deserialize_property;
     iface->find_property = my_config_find_property;
 }
-```
+#+end_src
 
-## Boxed Type Serialization
-
+** Boxed Type Serialization
 For custom value types (boxed types), register serialization handlers.
 
-### Defining a Boxed Type
-
-```c
+*** Defining a Boxed Type
+#+begin_src C
 /* Simple point structure */
 typedef struct {
     gdouble x;
@@ -355,11 +343,10 @@ my_point_free(MyPoint *point)
 }
 
 G_DEFINE_BOXED_TYPE(MyPoint, my_point, my_point_copy, my_point_free)
-```
+#+end_src
 
-### Registering Serialization Functions
-
-```c
+*** Registering Serialization Functions
+#+begin_src C
 static YamlNode *
 my_point_serialize(gconstpointer boxed)
 {
@@ -400,11 +387,10 @@ register_point_handlers(void)
     yaml_boxed_register_serialize_func(MY_TYPE_POINT, my_point_serialize);
     yaml_boxed_register_deserialize_func(MY_TYPE_POINT, my_point_deserialize);
 }
-```
+#+end_src
 
-### Using Boxed Types in Objects
-
-```c
+*** Using Boxed Types in Objects
+#+begin_src C
 struct _MyShape
 {
     GObject   parent;
@@ -433,13 +419,12 @@ example_boxed_usage(void)
     radius: 5.0
     */
 }
-```
+#+end_src
 
-## Nested Objects
-
+** Nested Objects
 GObject properties containing other GObjects are serialized recursively.
 
-```c
+#+begin_src C
 struct _MyTeam
 {
     GObject    parent;
@@ -469,13 +454,12 @@ example_nested(void)
         active: false
     */
 }
-```
+#+end_src
 
-## Enum and Flags Serialization
-
+** Enum and Flags Serialization
 Enums are serialized by their nick (short name), flags by combined nicks.
 
-```c
+#+begin_src C
 typedef enum {
     MY_STATUS_UNKNOWN,
     MY_STATUS_PENDING,
@@ -502,13 +486,12 @@ typedef enum {
 /*
 permissions: read|write
 */
-```
+#+end_src
 
-## Property Filtering
-
+** Property Filtering
 Control which properties are serialized:
 
-```c
+#+begin_src C
 static GParamSpec **
 my_object_list_properties(YamlSerializable *serializable,
                           guint            *n_pspecs)
@@ -540,11 +523,10 @@ my_object_list_properties(YamlSerializable *serializable,
     *n_pspecs = filtered->len;
     return (GParamSpec **)g_ptr_array_free(filtered, FALSE);
 }
-```
+#+end_src
 
-## Complete Example
-
-```c
+** Complete Example
+#+begin_src C
 #include <yaml-glib/yaml-glib.h>
 
 /* Address boxed type */
@@ -667,10 +649,9 @@ main(void)
 
     return 0;
 }
-```
+#+end_src
 
-## See Also
-
-- [YamlSerializable API](../api/serializable.md) - Interface reference
-- [GObject Serialization API](../api/gobject.md) - Function reference
-- [Memory Management](../memory-management.md) - Ownership patterns
+** See Also
+- [[../api/serializable.org][YamlSerializable API]] - Interface reference
+- [[../api/gobject.org][GObject Serialization API]] - Function reference
+- [[../memory-management.org][Memory Management]] - Ownership patterns

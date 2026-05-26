@@ -1,22 +1,19 @@
-# Parsing YAML Guide
-
+* Parsing YAML Guide
 This guide covers parsing YAML content from various sources using yaml-glib.
 
-## Overview
-
+** Overview
 yaml-glib provides multiple ways to parse YAML:
+
 - From file paths (synchronous)
 - From GFile objects (synchronous and asynchronous)
 - From strings/data
 - From input streams (synchronous and asynchronous)
 
-All parsing uses `YamlParser`, which produces `YamlDocument` objects containing `YamlNode` trees.
+All parsing uses =YamlParser=, which produces =YamlDocument= objects containing =YamlNode= trees.
 
-## Basic Parsing
-
-### Parsing from a File
-
-```c
+** Basic Parsing
+*** Parsing from a File
+#+begin_src C
 #include <yaml-glib/yaml-glib.h>
 
 gboolean
@@ -45,11 +42,10 @@ load_config_file(const gchar *filename)
 
     return TRUE;
 }
-```
+#+end_src
 
-### Parsing from a String
-
-```c
+*** Parsing from a String
+#+begin_src C
 gboolean
 parse_yaml_string(const gchar *yaml_content)
 {
@@ -80,13 +76,11 @@ example(void)
 
     parse_yaml_string(yaml);
 }
-```
+#+end_src
 
-## Working with Parsed Data
-
-### Accessing Mapping Properties
-
-```c
+** Working with Parsed Data
+*** Accessing Mapping Properties
+#+begin_src C
 void
 process_config(YamlNode *root)
 {
@@ -118,11 +112,10 @@ process_config(YamlNode *root)
         /* Process nested database config */
     }
 }
-```
+#+end_src
 
-### Iterating Over Sequences
-
-```c
+*** Iterating Over Sequences
+#+begin_src C
 void
 process_features(YamlNode *root)
 {
@@ -153,11 +146,10 @@ process_features(YamlNode *root)
         g_print("  - %s\n", feature);
     }
 }
-```
+#+end_src
 
-### Using Iterators
-
-```c
+*** Using Iterators
+#+begin_src C
 void
 iterate_mapping(YamlMapping *mapping)
 {
@@ -194,13 +186,12 @@ iterate_sequence(YamlSequence *sequence)
         g_print("Element type: %d\n", yaml_node_get_node_type(element));
     }
 }
-```
+#+end_src
 
-## Multi-Document Parsing
+** Multi-Document Parsing
+YAML supports multiple documents in a single stream, separated by =---=.
 
-YAML supports multiple documents in a single stream, separated by `---`.
-
-```c
+#+begin_src C
 void
 parse_multi_document(const gchar *filename)
 {
@@ -233,13 +224,12 @@ parse_multi_document(const gchar *filename)
         }
     }
 }
-```
+#+end_src
 
-## Parsing from GFile
-
+** Parsing from GFile
 For integration with GIO:
 
-```c
+#+begin_src C
 void
 parse_from_gfile(GFile *file)
 {
@@ -263,11 +253,10 @@ parse_from_uri(const gchar *uri)
     g_autoptr(GFile) file = g_file_new_for_uri(uri);
     parse_from_gfile(file);
 }
-```
+#+end_src
 
-## Parsing from Streams
-
-```c
+** Parsing from Streams
+#+begin_src C
 void
 parse_from_stream(GInputStream *stream)
 {
@@ -295,13 +284,12 @@ example_memory_stream(void)
 
     parse_from_stream(stream);
 }
-```
+#+end_src
 
-## Immutable Parsing
-
+** Immutable Parsing
 For thread-safe sharing of parsed data:
 
-```c
+#+begin_src C
 YamlNode *
 parse_immutable(const gchar *filename)
 {
@@ -333,11 +321,10 @@ example_set_immutable(void)
 
     /* Now parsed documents will be sealed */
 }
-```
+#+end_src
 
-## Error Handling
-
-```c
+** Error Handling
+#+begin_src C
 void
 robust_parsing(const gchar *filename)
 {
@@ -369,13 +356,12 @@ robust_parsing(const gchar *filename)
 
     /* Success */
 }
-```
+#+end_src
 
-## Type-Safe Access Pattern
-
+** Type-Safe Access Pattern
 A pattern for safely extracting expected structures:
 
-```c
+#+begin_src C
 typedef struct {
     gchar *name;
     gint   port;
@@ -425,11 +411,10 @@ free_server_config(ServerConfig *config)
     g_free(config->name);
     g_free(config->host);
 }
-```
+#+end_src
 
-## Reusing the Parser
-
-```c
+** Reusing the Parser
+#+begin_src C
 void
 parse_multiple_files(gchar **filenames, guint n_files)
 {
@@ -453,11 +438,10 @@ parse_multiple_files(gchar **filenames, guint n_files)
                 filenames[i], yaml_node_get_node_type(root));
     }
 }
-```
+#+end_src
 
-## Complete Example
-
-```c
+** Complete Example
+#+begin_src C
 #include <yaml-glib/yaml-glib.h>
 
 typedef struct {
@@ -577,11 +561,10 @@ main(int argc, char *argv[])
 
     return 0;
 }
-```
+#+end_src
 
-## See Also
-
-- [YamlParser API](../api/parser.md) - Complete API reference
-- [Async I/O Guide](async-io.md) - Asynchronous parsing
-- [Schema Validation Guide](schema-validation.md) - Validating parsed content
-- [Error Handling](../error-handling.md) - Error handling patterns
+** See Also
+- [[../api/parser.org][YamlParser API]] - Complete API reference
+- [[file:async-io.org][Async I/O Guide]] - Asynchronous parsing
+- [[file:schema-validation.org][Schema Validation Guide]] - Validating parsed content
+- [[../error-handling.org][Error Handling]] - Error handling patterns

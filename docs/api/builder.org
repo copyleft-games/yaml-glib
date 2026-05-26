@@ -1,298 +1,266 @@
-# YamlBuilder API Reference
+* YamlBuilder API Reference
+=YamlBuilder= provides a fluent API for programmatically constructing YAML structures.
 
-`YamlBuilder` provides a fluent API for programmatically constructing YAML structures.
-
-## Overview
-
-```c
+** Overview
+#+begin_src C
 #include <yaml-glib/yaml-glib.h>
 
 #define YAML_TYPE_BUILDER (yaml_builder_get_type())
 
 G_DECLARE_DERIVABLE_TYPE(YamlBuilder, yaml_builder, YAML, BUILDER, GObject)
-```
+#+end_src
 
-`YamlBuilder` uses a stack-based approach where you begin structures, add values, and end structures. All `begin_*` calls must be matched with corresponding `end_*` calls.
+=YamlBuilder= uses a stack-based approach where you begin structures, add values, and end structures. All =begin_*= calls must be matched with corresponding =end_*= calls.
 
-## Construction
-
-### yaml_builder_new
-
-```c
+** Construction
+*** yaml_builder_new
+#+begin_src C
 YamlBuilder *yaml_builder_new(void);
-```
+#+end_src
 
-Creates a new `YamlBuilder`.
+Creates a new =YamlBuilder=.
 
-**Returns:** `(transfer full)` A new `YamlBuilder`.
+*Returns:* =(transfer full)= A new =YamlBuilder=.
 
----
+--------------
 
-### yaml_builder_new_immutable
-
-```c
+*** yaml_builder_new_immutable
+#+begin_src C
 YamlBuilder *yaml_builder_new_immutable(void);
-```
+#+end_src
 
 Creates a builder that produces immutable (sealed) nodes.
 
-**Returns:** `(transfer full)` A new `YamlBuilder`.
+*Returns:* =(transfer full)= A new =YamlBuilder=.
 
----
+--------------
 
-### yaml_builder_get_immutable / yaml_builder_set_immutable
-
-```c
+*** yaml_builder_get_immutable / yaml_builder_set_immutable
+#+begin_src C
 gboolean yaml_builder_get_immutable(YamlBuilder *builder);
 void yaml_builder_set_immutable(YamlBuilder *builder, gboolean immutable);
-```
+#+end_src
 
 Get/set whether built nodes are immutable.
 
----
+--------------
 
-## Mapping Construction
-
-### yaml_builder_begin_mapping
-
-```c
+** Mapping Construction
+*** yaml_builder_begin_mapping
+#+begin_src C
 YamlBuilder *yaml_builder_begin_mapping(YamlBuilder *builder);
-```
+#+end_src
 
-Begins a new mapping. Must be matched with `yaml_builder_end_mapping()`.
+Begins a new mapping. Must be matched with =yaml_builder_end_mapping()=.
 
-**Returns:** `(transfer none)` The builder for chaining.
+*Returns:* =(transfer none)= The builder for chaining.
 
----
+--------------
 
-### yaml_builder_end_mapping
-
-```c
+*** yaml_builder_end_mapping
+#+begin_src C
 YamlBuilder *yaml_builder_end_mapping(YamlBuilder *builder);
-```
+#+end_src
 
 Ends the current mapping.
 
-**Returns:** `(transfer none)` The builder for chaining.
+*Returns:* =(transfer none)= The builder for chaining.
 
----
+--------------
 
-### yaml_builder_set_member_name
-
-```c
+*** yaml_builder_set_member_name
+#+begin_src C
 YamlBuilder *yaml_builder_set_member_name(YamlBuilder *builder, const gchar *name);
-```
+#+end_src
 
 Sets the name for the next value in a mapping. Must be called before adding a value within a mapping context.
 
-**Parameters:**
+*Parameters:*
 
-| Name | Type | Description |
-|------|------|-------------|
-| builder | `YamlBuilder *` | A builder |
-| name | `const gchar *` | The member name (mapping key) |
+| Name    | Type            | Description                   |
+|---------+-----------------+-------------------------------|
+| builder | =YamlBuilder *= | A builder                     |
+| name    | =const gchar *= | The member name (mapping key) |
 
-**Returns:** `(transfer none)` The builder for chaining.
+*Returns:* =(transfer none)= The builder for chaining.
 
----
+--------------
 
-## Sequence Construction
-
-### yaml_builder_begin_sequence
-
-```c
+** Sequence Construction
+*** yaml_builder_begin_sequence
+#+begin_src C
 YamlBuilder *yaml_builder_begin_sequence(YamlBuilder *builder);
-```
+#+end_src
 
-Begins a new sequence. Must be matched with `yaml_builder_end_sequence()`.
+Begins a new sequence. Must be matched with =yaml_builder_end_sequence()=.
 
-**Returns:** `(transfer none)` The builder for chaining.
+*Returns:* =(transfer none)= The builder for chaining.
 
----
+--------------
 
-### yaml_builder_end_sequence
-
-```c
+*** yaml_builder_end_sequence
+#+begin_src C
 YamlBuilder *yaml_builder_end_sequence(YamlBuilder *builder);
-```
+#+end_src
 
 Ends the current sequence.
 
-**Returns:** `(transfer none)` The builder for chaining.
+*Returns:* =(transfer none)= The builder for chaining.
 
----
+--------------
 
-## Scalar Values
-
-### yaml_builder_add_null_value
-
-```c
+** Scalar Values
+*** yaml_builder_add_null_value
+#+begin_src C
 YamlBuilder *yaml_builder_add_null_value(YamlBuilder *builder);
-```
+#+end_src
 
 Adds a null value.
 
----
+--------------
 
-### yaml_builder_add_boolean_value
-
-```c
+*** yaml_builder_add_boolean_value
+#+begin_src C
 YamlBuilder *yaml_builder_add_boolean_value(YamlBuilder *builder, gboolean value);
-```
+#+end_src
 
 Adds a boolean value.
 
----
+--------------
 
-### yaml_builder_add_int_value
-
-```c
+*** yaml_builder_add_int_value
+#+begin_src C
 YamlBuilder *yaml_builder_add_int_value(YamlBuilder *builder, gint64 value);
-```
+#+end_src
 
 Adds an integer value.
 
----
+--------------
 
-### yaml_builder_add_double_value
-
-```c
+*** yaml_builder_add_double_value
+#+begin_src C
 YamlBuilder *yaml_builder_add_double_value(YamlBuilder *builder, gdouble value);
-```
+#+end_src
 
 Adds a double value.
 
----
+--------------
 
-### yaml_builder_add_string_value
-
-```c
+*** yaml_builder_add_string_value
+#+begin_src C
 YamlBuilder *yaml_builder_add_string_value(YamlBuilder *builder, const gchar *value);
-```
+#+end_src
 
 Adds a string value.
 
----
+--------------
 
-### yaml_builder_add_scalar_value
-
-```c
+*** yaml_builder_add_scalar_value
+#+begin_src C
 YamlBuilder *yaml_builder_add_scalar_value(
     YamlBuilder     *builder,
     const gchar     *value,
     YamlScalarStyle  style
 );
-```
+#+end_src
 
 Adds a scalar value with explicit style.
 
----
+--------------
 
-### yaml_builder_add_value
-
-```c
+*** yaml_builder_add_value
+#+begin_src C
 YamlBuilder *yaml_builder_add_value(YamlBuilder *builder, YamlNode *node);
-```
+#+end_src
 
 Adds an existing node value.
 
----
+--------------
 
-## Anchor and Tag Support
-
-### yaml_builder_set_anchor
-
-```c
+** Anchor and Tag Support
+*** yaml_builder_set_anchor
+#+begin_src C
 YamlBuilder *yaml_builder_set_anchor(YamlBuilder *builder, const gchar *anchor);
-```
+#+end_src
 
 Sets the anchor for the next node. The anchor will be applied to the next mapping, sequence, or scalar.
 
----
+--------------
 
-### yaml_builder_set_tag
-
-```c
+*** yaml_builder_set_tag
+#+begin_src C
 YamlBuilder *yaml_builder_set_tag(YamlBuilder *builder, const gchar *tag);
-```
+#+end_src
 
 Sets the tag for the next node.
 
----
+--------------
 
-### yaml_builder_add_alias
-
-```c
+*** yaml_builder_add_alias
+#+begin_src C
 YamlBuilder *yaml_builder_add_alias(YamlBuilder *builder, const gchar *anchor);
-```
+#+end_src
 
 Adds an alias node referencing a previously anchored node.
 
----
+--------------
 
-## Result Retrieval
-
-### yaml_builder_get_root
-
-```c
+** Result Retrieval
+*** yaml_builder_get_root
+#+begin_src C
 YamlNode *yaml_builder_get_root(YamlBuilder *builder);
-```
+#+end_src
 
 Gets the root node that was built. The builder must have a complete structure.
 
-**Returns:** `(transfer none) (nullable)` The root node, or `NULL`.
+*Returns:* =(transfer none) (nullable)= The root node, or =NULL=.
 
----
+--------------
 
-### yaml_builder_dup_root
-
-```c
+*** yaml_builder_dup_root
+#+begin_src C
 YamlNode *yaml_builder_dup_root(YamlBuilder *builder);
-```
+#+end_src
 
 Gets a new reference to the root node.
 
-**Returns:** `(transfer full) (nullable)` The root node, or `NULL`.
+*Returns:* =(transfer full) (nullable)= The root node, or =NULL=.
 
----
+--------------
 
-### yaml_builder_steal_root
-
-```c
+*** yaml_builder_steal_root
+#+begin_src C
 YamlNode *yaml_builder_steal_root(YamlBuilder *builder);
-```
+#+end_src
 
 Steals the root node, resetting the builder.
 
-**Returns:** `(transfer full) (nullable)` The root node, or `NULL`.
+*Returns:* =(transfer full) (nullable)= The root node, or =NULL=.
 
----
+--------------
 
-### yaml_builder_get_document
-
-```c
+*** yaml_builder_get_document
+#+begin_src C
 YamlDocument *yaml_builder_get_document(YamlBuilder *builder);
-```
+#+end_src
 
 Gets the built structure as a document.
 
-**Returns:** `(transfer full) (nullable)` A new document, or `NULL`.
+*Returns:* =(transfer full) (nullable)= A new document, or =NULL=.
 
----
+--------------
 
-### yaml_builder_reset
-
-```c
+*** yaml_builder_reset
+#+begin_src C
 void yaml_builder_reset(YamlBuilder *builder);
-```
+#+end_src
 
 Resets the builder, clearing all state.
 
----
+--------------
 
-## Complete Example
-
-```c
+** Complete Example
+#+begin_src C
 #include <yaml-glib/yaml-glib.h>
 
 YamlNode *
@@ -345,11 +313,10 @@ build_config(void)
 
     return yaml_builder_steal_root(builder);
 }
-```
+#+end_src
 
-## Anchor Example
-
-```c
+** Anchor Example
+#+begin_src C
 YamlNode *
 build_with_anchors(void)
 {
@@ -375,10 +342,9 @@ build_with_anchors(void)
 
     return yaml_builder_steal_root(builder);
 }
-```
+#+end_src
 
-## See Also
-
-- [YamlNode](node.md) - Generic container (direct construction)
-- [YamlGenerator](generator.md) - Generate YAML output
-- [Building YAML Guide](../guides/building-yaml.md) - Complete building guide
+** See Also
+- [[file:node.org][YamlNode]] - Generic container (direct construction)
+- [[file:generator.org][YamlGenerator]] - Generate YAML output
+- [[../guides/building-yaml.org][Building YAML Guide]] - Complete building guide

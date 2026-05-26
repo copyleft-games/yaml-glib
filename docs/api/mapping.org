@@ -1,0 +1,756 @@
+* YamlMapping API Reference
+=YamlMapping= is a container for YAML key-value pairs where keys are strings and values are =YamlNode= instances.
+
+** Overview
+#+begin_src C
+#include <yaml-glib/yaml-glib.h>
+
+#define YAML_TYPE_MAPPING (yaml_mapping_get_type())
+#+end_src
+
+=YamlMapping= is a reference-counted boxed type. Use =yaml_mapping_ref()= and =yaml_mapping_unref()= to manage its lifetime.
+
+A mapping can be made immutable by calling =yaml_mapping_seal()=. Immutable mappings cannot be modified and are safe to share between threads.
+
+** Type Definition
+#+begin_src C
+typedef struct _YamlMapping YamlMapping;
+#+end_src
+
+** Callback Types
+*** YamlMappingForeach
+#+begin_src C
+typedef void (*YamlMappingForeach)(
+    YamlMapping *mapping,
+    const gchar *member_name,
+    YamlNode    *member_node,
+    gpointer     user_data
+);
+#+end_src
+
+Callback function type for =yaml_mapping_foreach_member()=.
+
+*Parameters:*
+
+| Name        | Type            | Description                                         |
+|-------------+-----------------+-----------------------------------------------------|
+| mapping     | =YamlMapping *= | The iterated mapping                                |
+| member_name | =const gchar *= | The name of the current member                      |
+| member_node | =YamlNode *=    | The value of the current member                     |
+| user_data   | =gpointer=      | User data passed to =yaml_mapping_foreach_member()= |
+
+--------------
+
+** Construction
+*** yaml_mapping_new
+#+begin_src C
+YamlMapping *yaml_mapping_new(void);
+#+end_src
+
+Creates a new empty =YamlMapping=.
+
+*Returns:* =(transfer full)= A new =YamlMapping=. Use =yaml_mapping_unref()= when done.
+
+*Example:*
+
+#+begin_src C
+g_autoptr(YamlMapping) mapping = yaml_mapping_new();
+yaml_mapping_set_string_member(mapping, "name", "John");
+yaml_mapping_set_int_member(mapping, "age", 30);
+#+end_src
+
+--------------
+
+** Reference Counting
+*** yaml_mapping_ref
+#+begin_src C
+YamlMapping *yaml_mapping_ref(YamlMapping *mapping);
+#+end_src
+
+Increases the reference count by one.
+
+*Parameters:*
+
+| Name    | Type            | Description |
+|---------+-----------------+-------------|
+| mapping | =YamlMapping *= | A mapping   |
+
+*Returns:* =(transfer full)= The same mapping.
+
+--------------
+
+*** yaml_mapping_unref
+#+begin_src C
+void yaml_mapping_unref(YamlMapping *mapping);
+#+end_src
+
+Decreases the reference count by one. When the count reaches zero, the mapping is freed.
+
+*Parameters:*
+
+| Name    | Type            | Description |
+|---------+-----------------+-------------|
+| mapping | =YamlMapping *= | A mapping   |
+
+--------------
+
+** Immutability
+*** yaml_mapping_seal
+#+begin_src C
+void yaml_mapping_seal(YamlMapping *mapping);
+#+end_src
+
+Makes the mapping immutable. Also seals all contained nodes.
+
+*Parameters:*
+
+| Name    | Type            | Description |
+|---------+-----------------+-------------|
+| mapping | =YamlMapping *= | A mapping   |
+
+--------------
+
+*** yaml_mapping_is_immutable
+#+begin_src C
+gboolean yaml_mapping_is_immutable(YamlMapping *mapping);
+#+end_src
+
+Checks whether the mapping is immutable (sealed).
+
+*Parameters:*
+
+| Name    | Type            | Description |
+|---------+-----------------+-------------|
+| mapping | =YamlMapping *= | A mapping   |
+
+*Returns:* =TRUE= if the mapping is immutable.
+
+--------------
+
+** Size and Member Queries
+*** yaml_mapping_get_size
+#+begin_src C
+guint yaml_mapping_get_size(YamlMapping *mapping);
+#+end_src
+
+Gets the number of key-value pairs.
+
+*Parameters:*
+
+| Name    | Type            | Description |
+|---------+-----------------+-------------|
+| mapping | =YamlMapping *= | A mapping   |
+
+*Returns:* The number of members.
+
+--------------
+
+*** yaml_mapping_get_key
+#+begin_src C
+const gchar *yaml_mapping_get_key(YamlMapping *mapping, guint index);
+#+end_src
+
+Gets the key name at the given index. Useful for index-based iteration.
+
+*Parameters:*
+
+| Name    | Type            | Description          |
+|---------+-----------------+----------------------|
+| mapping | =YamlMapping *= | A mapping            |
+| index   | =guint=         | The index of the key |
+
+*Returns:* =(transfer none) (nullable)= The key name, or =NULL= if out of bounds.
+
+--------------
+
+*** yaml_mapping_get_value
+#+begin_src C
+YamlNode *yaml_mapping_get_value(YamlMapping *mapping, guint index);
+#+end_src
+
+Gets the value at the given index. Useful for index-based iteration.
+
+*Parameters:*
+
+| Name    | Type            | Description            |
+|---------+-----------------+------------------------|
+| mapping | =YamlMapping *= | A mapping              |
+| index   | =guint=         | The index of the value |
+
+*Returns:* =(transfer none) (nullable)= The value, or =NULL= if out of bounds.
+
+*Example:*
+
+#+begin_src C
+/* Index-based iteration */
+guint size = yaml_mapping_get_size(mapping);
+for (guint i = 0; i < size; i++)
+{
+    const gchar *key = yaml_mapping_get_key(mapping, i);
+    YamlNode *value = yaml_mapping_get_value(mapping, i);
+    g_print("%s: %s\n", key, yaml_node_get_string(value));
+}
+#+end_src
+
+--------------
+
+*** yaml_mapping_has_member
+#+begin_src C
+gboolean yaml_mapping_has_member(YamlMapping *mapping, const gchar *member_name);
+#+end_src
+
+Checks whether the mapping contains a member with the given name.
+
+*Parameters:*
+
+| Name        | Type            | Description              |
+|-------------+-----------------+--------------------------|
+| mapping     | =YamlMapping *= | A mapping                |
+| member_name | =const gchar *= | The member name to check |
+
+*Returns:* =TRUE= if the member exists.
+
+*Example:*
+
+#+begin_src C
+if (yaml_mapping_has_member(mapping, "email"))
+{
+    const gchar *email = yaml_mapping_get_string_member(mapping, "email");
+    send_notification(email);
+}
+#+end_src
+
+--------------
+
+*** yaml_mapping_get_members
+#+begin_src C
+GList *yaml_mapping_get_members(YamlMapping *mapping);
+#+end_src
+
+Gets a list of all member names.
+
+*Parameters:*
+
+| Name    | Type            | Description |
+|---------+-----------------+-------------|
+| mapping | =YamlMapping *= | A mapping   |
+
+*Returns:* =(transfer container) (element-type utf8)= A newly allocated =GList= of member names. The strings are owned by the mapping. Free the list with =g_list_free()=.
+
+*Example:*
+
+#+begin_src C
+GList *members = yaml_mapping_get_members(mapping);
+for (GList *l = members; l != NULL; l = l->next)
+{
+    const gchar *name = l->data;
+    g_print("Member: %s\n", name);
+}
+g_list_free(members);
+#+end_src
+
+--------------
+
+** Generic Member Access
+*** yaml_mapping_set_member
+#+begin_src C
+void yaml_mapping_set_member(
+    YamlMapping *mapping,
+    const gchar *member_name,
+    YamlNode    *node
+);
+#+end_src
+
+Sets the value of a member. Takes a reference on the node.
+
+*Parameters:*
+
+| Name        | Type            | Description      |
+|-------------+-----------------+------------------|
+| mapping     | =YamlMapping *= | A mapping        |
+| member_name | =const gchar *= | The member name  |
+| node        | =YamlNode *=    | The value to set |
+
+--------------
+
+*** yaml_mapping_get_member
+#+begin_src C
+YamlNode *yaml_mapping_get_member(
+    YamlMapping *mapping,
+    const gchar *member_name
+);
+#+end_src
+
+Gets the node value for a member.
+
+*Parameters:*
+
+| Name        | Type            | Description     |
+|-------------+-----------------+-----------------|
+| mapping     | =YamlMapping *= | A mapping       |
+| member_name | =const gchar *= | The member name |
+
+*Returns:* =(transfer none) (nullable)= The node value, or =NULL= if not found.
+
+--------------
+
+*** yaml_mapping_dup_member
+#+begin_src C
+YamlNode *yaml_mapping_dup_member(
+    YamlMapping *mapping,
+    const gchar *member_name
+);
+#+end_src
+
+Gets a new reference to the member value.
+
+*Parameters:*
+
+| Name        | Type            | Description     |
+|-------------+-----------------+-----------------|
+| mapping     | =YamlMapping *= | A mapping       |
+| member_name | =const gchar *= | The member name |
+
+*Returns:* =(transfer full) (nullable)= A new reference, or =NULL=. Free with =yaml_node_unref()=.
+
+--------------
+
+*** yaml_mapping_remove_member
+#+begin_src C
+gboolean yaml_mapping_remove_member(
+    YamlMapping *mapping,
+    const gchar *member_name
+);
+#+end_src
+
+Removes a member from the mapping.
+
+*Parameters:*
+
+| Name        | Type            | Description               |
+|-------------+-----------------+---------------------------|
+| mapping     | =YamlMapping *= | A mapping                 |
+| member_name | =const gchar *= | The member name to remove |
+
+*Returns:* =TRUE= if the member was removed, =FALSE= if it didn't exist.
+
+--------------
+
+** Convenience Setters
+*** yaml_mapping_set_string_member
+#+begin_src C
+void yaml_mapping_set_string_member(
+    YamlMapping *mapping,
+    const gchar *member_name,
+    const gchar *value
+);
+#+end_src
+
+Sets a string value for a member.
+
+*Parameters:*
+
+| Name        | Type            | Description      |
+|-------------+-----------------+------------------|
+| mapping     | =YamlMapping *= | A mapping        |
+| member_name | =const gchar *= | The member name  |
+| value       | =const gchar *= | The string value |
+
+*Example:*
+
+#+begin_src C
+yaml_mapping_set_string_member(mapping, "name", "John Doe");
+yaml_mapping_set_string_member(mapping, "email", "john@example.com");
+#+end_src
+
+--------------
+
+*** yaml_mapping_set_int_member
+#+begin_src C
+void yaml_mapping_set_int_member(
+    YamlMapping *mapping,
+    const gchar *member_name,
+    gint64       value
+);
+#+end_src
+
+Sets an integer value for a member.
+
+*Parameters:*
+
+| Name        | Type            | Description       |
+|-------------+-----------------+-------------------|
+| mapping     | =YamlMapping *= | A mapping         |
+| member_name | =const gchar *= | The member name   |
+| value       | =gint64=        | The integer value |
+
+--------------
+
+*** yaml_mapping_set_double_member
+#+begin_src C
+void yaml_mapping_set_double_member(
+    YamlMapping *mapping,
+    const gchar *member_name,
+    gdouble      value
+);
+#+end_src
+
+Sets a double value for a member.
+
+*Parameters:*
+
+| Name        | Type            | Description      |
+|-------------+-----------------+------------------|
+| mapping     | =YamlMapping *= | A mapping        |
+| member_name | =const gchar *= | The member name  |
+| value       | =gdouble=       | The double value |
+
+--------------
+
+*** yaml_mapping_set_boolean_member
+#+begin_src C
+void yaml_mapping_set_boolean_member(
+    YamlMapping *mapping,
+    const gchar *member_name,
+    gboolean     value
+);
+#+end_src
+
+Sets a boolean value for a member.
+
+*Parameters:*
+
+| Name        | Type            | Description       |
+|-------------+-----------------+-------------------|
+| mapping     | =YamlMapping *= | A mapping         |
+| member_name | =const gchar *= | The member name   |
+| value       | =gboolean=      | The boolean value |
+
+--------------
+
+*** yaml_mapping_set_null_member
+#+begin_src C
+void yaml_mapping_set_null_member(
+    YamlMapping *mapping,
+    const gchar *member_name
+);
+#+end_src
+
+Sets a null value for a member.
+
+*Parameters:*
+
+| Name        | Type            | Description     |
+|-------------+-----------------+-----------------|
+| mapping     | =YamlMapping *= | A mapping       |
+| member_name | =const gchar *= | The member name |
+
+--------------
+
+*** yaml_mapping_set_mapping_member
+#+begin_src C
+void yaml_mapping_set_mapping_member(
+    YamlMapping *mapping,
+    const gchar *member_name,
+    YamlMapping *value
+);
+#+end_src
+
+Sets a mapping value for a member.
+
+*Parameters:*
+
+| Name        | Type            | Description       |
+|-------------+-----------------+-------------------|
+| mapping     | =YamlMapping *= | A mapping         |
+| member_name | =const gchar *= | The member name   |
+| value       | =YamlMapping *= | The mapping value |
+
+*Example:*
+
+#+begin_src C
+g_autoptr(YamlMapping) address = yaml_mapping_new();
+yaml_mapping_set_string_member(address, "city", "Springfield");
+yaml_mapping_set_string_member(address, "zip", "12345");
+
+yaml_mapping_set_mapping_member(person, "address", address);
+#+end_src
+
+--------------
+
+*** yaml_mapping_set_sequence_member
+#+begin_src C
+void yaml_mapping_set_sequence_member(
+    YamlMapping  *mapping,
+    const gchar  *member_name,
+    YamlSequence *value
+);
+#+end_src
+
+Sets a sequence value for a member.
+
+*Parameters:*
+
+| Name        | Type             | Description        |
+|-------------+------------------+--------------------|
+| mapping     | =YamlMapping *=  | A mapping          |
+| member_name | =const gchar *=  | The member name    |
+| value       | =YamlSequence *= | The sequence value |
+
+--------------
+
+** Convenience Getters
+*** yaml_mapping_get_string_member
+#+begin_src C
+const gchar *yaml_mapping_get_string_member(
+    YamlMapping *mapping,
+    const gchar *member_name
+);
+#+end_src
+
+Gets the string value of a member.
+
+*Parameters:*
+
+| Name        | Type            | Description     |
+|-------------+-----------------+-----------------|
+| mapping     | =YamlMapping *= | A mapping       |
+| member_name | =const gchar *= | The member name |
+
+*Returns:* =(transfer none) (nullable)= The string value, or =NULL=.
+
+*Example:*
+
+#+begin_src C
+const gchar *name = yaml_mapping_get_string_member(mapping, "name");
+if (name != NULL)
+{
+    g_print("Name: %s\n", name);
+}
+#+end_src
+
+--------------
+
+*** yaml_mapping_get_int_member
+#+begin_src C
+gint64 yaml_mapping_get_int_member(
+    YamlMapping *mapping,
+    const gchar *member_name
+);
+#+end_src
+
+Gets the integer value of a member.
+
+*Parameters:*
+
+| Name        | Type            | Description     |
+|-------------+-----------------+-----------------|
+| mapping     | =YamlMapping *= | A mapping       |
+| member_name | =const gchar *= | The member name |
+
+*Returns:* The integer value, or 0 if not found or not an integer.
+
+--------------
+
+*** yaml_mapping_get_double_member
+#+begin_src C
+gdouble yaml_mapping_get_double_member(
+    YamlMapping *mapping,
+    const gchar *member_name
+);
+#+end_src
+
+Gets the double value of a member.
+
+*Parameters:*
+
+| Name        | Type            | Description     |
+|-------------+-----------------+-----------------|
+| mapping     | =YamlMapping *= | A mapping       |
+| member_name | =const gchar *= | The member name |
+
+*Returns:* The double value, or 0.0 if not found or not a number.
+
+--------------
+
+*** yaml_mapping_get_boolean_member
+#+begin_src C
+gboolean yaml_mapping_get_boolean_member(
+    YamlMapping *mapping,
+    const gchar *member_name
+);
+#+end_src
+
+Gets the boolean value of a member.
+
+*Parameters:*
+
+| Name        | Type            | Description     |
+|-------------+-----------------+-----------------|
+| mapping     | =YamlMapping *= | A mapping       |
+| member_name | =const gchar *= | The member name |
+
+*Returns:* The boolean value, or =FALSE= if not found.
+
+--------------
+
+*** yaml_mapping_get_null_member
+#+begin_src C
+gboolean yaml_mapping_get_null_member(
+    YamlMapping *mapping,
+    const gchar *member_name
+);
+#+end_src
+
+Checks if a member is a null value.
+
+*Parameters:*
+
+| Name        | Type            | Description     |
+|-------------+-----------------+-----------------|
+| mapping     | =YamlMapping *= | A mapping       |
+| member_name | =const gchar *= | The member name |
+
+*Returns:* =TRUE= if the member is null.
+
+--------------
+
+*** yaml_mapping_get_mapping_member
+#+begin_src C
+YamlMapping *yaml_mapping_get_mapping_member(
+    YamlMapping *mapping,
+    const gchar *member_name
+);
+#+end_src
+
+Gets the mapping value of a member.
+
+*Parameters:*
+
+| Name        | Type            | Description     |
+|-------------+-----------------+-----------------|
+| mapping     | =YamlMapping *= | A mapping       |
+| member_name | =const gchar *= | The member name |
+
+*Returns:* =(transfer none) (nullable)= The mapping value, or =NULL=.
+
+--------------
+
+*** yaml_mapping_get_sequence_member
+#+begin_src C
+YamlSequence *yaml_mapping_get_sequence_member(
+    YamlMapping *mapping,
+    const gchar *member_name
+);
+#+end_src
+
+Gets the sequence value of a member.
+
+*Parameters:*
+
+| Name        | Type            | Description     |
+|-------------+-----------------+-----------------|
+| mapping     | =YamlMapping *= | A mapping       |
+| member_name | =const gchar *= | The member name |
+
+*Returns:* =(transfer none) (nullable)= The sequence value, or =NULL=.
+
+--------------
+
+** Iteration
+*** yaml_mapping_foreach_member
+#+begin_src C
+void yaml_mapping_foreach_member(
+    YamlMapping        *mapping,
+    YamlMappingForeach  func,
+    gpointer            user_data
+);
+#+end_src
+
+Calls a function for each member in the mapping.
+
+*Parameters:*
+
+| Name      | Type                 | Description                       |
+|-----------+----------------------+-----------------------------------|
+| mapping   | =YamlMapping *=      | A mapping                         |
+| func      | =YamlMappingForeach= | The callback function             |
+| user_data | =gpointer=           | User data to pass to the callback |
+
+*Example:*
+
+#+begin_src C
+static void
+print_member(
+    YamlMapping *mapping,
+    const gchar *name,
+    YamlNode    *node,
+    gpointer     user_data
+)
+{
+    (void)mapping;
+    (void)user_data;
+    g_print("%s: %s\n", name, yaml_node_get_string(node));
+}
+
+yaml_mapping_foreach_member(mapping, print_member, NULL);
+#+end_src
+
+--------------
+
+** Equality and Hashing
+*** yaml_mapping_hash
+#+begin_src C
+guint yaml_mapping_hash(gconstpointer key);
+#+end_src
+
+Computes a hash value for the mapping.
+
+*Parameters:*
+
+| Name | Type            | Description     |
+|------+-----------------+-----------------|
+| key  | =gconstpointer= | A =YamlMapping= |
+
+*Returns:* A hash value.
+
+--------------
+
+*** yaml_mapping_equal
+#+begin_src C
+gboolean yaml_mapping_equal(gconstpointer a, gconstpointer b);
+#+end_src
+
+Checks if two mappings have equal content.
+
+*Parameters:*
+
+| Name | Type            | Description           |
+|------+-----------------+-----------------------|
+| a    | =gconstpointer= | A =YamlMapping=       |
+| b    | =gconstpointer= | Another =YamlMapping= |
+
+*Returns:* =TRUE= if the mappings are equal.
+
+--------------
+
+** Autoptr Support
+#+begin_src C
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(YamlMapping, yaml_mapping_unref)
+#+end_src
+
+Use =g_autoptr(YamlMapping)= for automatic cleanup:
+
+#+begin_src C
+void example(void)
+{
+    g_autoptr(YamlMapping) mapping = yaml_mapping_new();
+    yaml_mapping_set_string_member(mapping, "key", "value");
+    /* mapping automatically freed when leaving scope */
+}
+#+end_src
+
+** See Also
+- [[file:node.org][YamlNode]] - Generic container
+- [[file:sequence.org][YamlSequence]] - Ordered arrays
+- [[../memory-management.org][Memory Management]] - Ownership patterns

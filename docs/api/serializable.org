@@ -1,27 +1,24 @@
-# YamlSerializable API Reference
+* YamlSerializable API Reference
+=YamlSerializable= is an interface for custom GObject serialization.
 
-`YamlSerializable` is an interface for custom GObject serialization.
-
-## Overview
-
-```c
+** Overview
+#+begin_src C
 #include <yaml-glib/yaml-glib.h>
 
 #define YAML_TYPE_SERIALIZABLE (yaml_serializable_get_type())
 
 G_DECLARE_INTERFACE(YamlSerializable, yaml_serializable, YAML, SERIALIZABLE, GObject)
-```
+#+end_src
 
-`YamlSerializable` allows GObjects to customize how they are serialized to and deserialized from YAML. By implementing this interface, objects can:
+=YamlSerializable= allows GObjects to customize how they are serialized to and deserialized from YAML. By implementing this interface, objects can:
 
 - Map property names between YAML and GObject
 - Transform values during serialization/deserialization
 - Serialize computed or virtual properties
 - Handle complex nested structures
 
-## Interface Structure
-
-```c
+** Interface Structure
+#+begin_src C
 struct _YamlSerializableInterface
 {
     GTypeInterface g_iface;
@@ -53,32 +50,31 @@ struct _YamlSerializableInterface
 
     gpointer _reserved[8];
 };
-```
+#+end_src
 
-## Virtual Methods
+** Virtual Methods
+*** serialize_property
+Called to serialize a property to a YAML node. Return =NULL= to use the default serialization.
 
-### serialize_property
+*Signature:*
 
-Called to serialize a property to a YAML node. Return `NULL` to use the default serialization.
-
-**Signature:**
-```c
+#+begin_src C
 YamlNode *(* serialize_property)(
     YamlSerializable *serializable,
     const gchar      *property_name,
     const GValue     *value,
     GParamSpec       *pspec
 );
-```
+#+end_src
 
----
+--------------
 
-### deserialize_property
+*** deserialize_property
+Called to deserialize a property from a YAML node. Return =FALSE= to use the default deserialization.
 
-Called to deserialize a property from a YAML node. Return `FALSE` to use the default deserialization.
+*Signature:*
 
-**Signature:**
-```c
+#+begin_src C
 gboolean (* deserialize_property)(
     YamlSerializable *serializable,
     const gchar      *property_name,
@@ -86,44 +82,44 @@ gboolean (* deserialize_property)(
     GParamSpec       *pspec,
     YamlNode         *node
 );
-```
+#+end_src
 
----
+--------------
 
-### find_property
-
+*** find_property
 Called to find a property by name. Override to support property name mapping (e.g., snake_case to kebab-case).
 
-**Signature:**
-```c
+*Signature:*
+
+#+begin_src C
 GParamSpec *(* find_property)(
     YamlSerializable *serializable,
     const gchar      *name
 );
-```
+#+end_src
 
----
+--------------
 
-### list_properties
-
+*** list_properties
 Called to get the list of serializable properties. Override to filter or add properties.
 
-**Signature:**
-```c
+*Signature:*
+
+#+begin_src C
 GParamSpec **(* list_properties)(
     YamlSerializable *serializable,
     guint            *n_pspecs
 );
-```
+#+end_src
 
----
+--------------
 
-### get_property / set_property
-
+*** get_property / set_property
 Called to get or set a property value. Override for computed or virtual properties.
 
-**Signatures:**
-```c
+*Signatures:*
+
+#+begin_src C
 void (* get_property)(
     YamlSerializable *serializable,
     GParamSpec       *pspec,
@@ -135,41 +131,38 @@ gboolean (* set_property)(
     GParamSpec       *pspec,
     const GValue     *value
 );
-```
+#+end_src
 
----
+--------------
 
-## Interface Functions
-
-### yaml_serializable_serialize_property
-
-```c
+** Interface Functions
+*** yaml_serializable_serialize_property
+#+begin_src C
 YamlNode *yaml_serializable_serialize_property(
     YamlSerializable *serializable,
     const gchar      *property_name,
     const GValue     *value,
     GParamSpec       *pspec
 );
-```
+#+end_src
 
-Asks `serializable` to serialize a property.
+Asks =serializable= to serialize a property.
 
-**Parameters:**
+*Parameters:*
 
-| Name | Type | Description |
-|------|------|-------------|
-| serializable | `YamlSerializable *` | A serializable object |
-| property_name | `const gchar *` | The property name |
-| value | `const GValue *` | The property value |
-| pspec | `GParamSpec *` | The property specification |
+| Name          | Type                 | Description                |
+|---------------+----------------------+----------------------------|
+| serializable  | =YamlSerializable *= | A serializable object      |
+| property_name | =const gchar *=      | The property name          |
+| value         | =const GValue *=     | The property value         |
+| pspec         | =GParamSpec *=       | The property specification |
 
-**Returns:** `(transfer full) (nullable)` A `YamlNode`, or `NULL`.
+*Returns:* =(transfer full) (nullable)= A =YamlNode=, or =NULL=.
 
----
+--------------
 
-### yaml_serializable_deserialize_property
-
-```c
+*** yaml_serializable_deserialize_property
+#+begin_src C
 gboolean yaml_serializable_deserialize_property(
     YamlSerializable *serializable,
     const gchar      *property_name,
@@ -177,142 +170,137 @@ gboolean yaml_serializable_deserialize_property(
     GParamSpec       *pspec,
     YamlNode         *node
 );
-```
+#+end_src
 
-Asks `serializable` to deserialize a property.
+Asks =serializable= to deserialize a property.
 
-**Parameters:**
+*Parameters:*
 
-| Name | Type | Description |
-|------|------|-------------|
-| serializable | `YamlSerializable *` | A serializable object |
-| property_name | `const gchar *` | The property name |
-| value | `GValue *` `(out)` | Location for the property value |
-| pspec | `GParamSpec *` | The property specification |
-| node | `YamlNode *` | The YAML node containing the value |
+| Name          | Type                 | Description                        |
+|---------------+----------------------+------------------------------------|
+| serializable  | =YamlSerializable *= | A serializable object              |
+| property_name | =const gchar *=      | The property name                  |
+| value         | =GValue *= =(out)=   | Location for the property value    |
+| pspec         | =GParamSpec *=       | The property specification         |
+| node          | =YamlNode *=         | The YAML node containing the value |
 
-**Returns:** `TRUE` if the property was handled.
+*Returns:* =TRUE= if the property was handled.
 
----
+--------------
 
-### yaml_serializable_find_property
-
-```c
+*** yaml_serializable_find_property
+#+begin_src C
 GParamSpec *yaml_serializable_find_property(
     YamlSerializable *serializable,
     const gchar      *name
 );
-```
+#+end_src
 
 Finds a property by name.
 
-**Parameters:**
+*Parameters:*
 
-| Name | Type | Description |
-|------|------|-------------|
-| serializable | `YamlSerializable *` | A serializable object |
-| name | `const gchar *` | The property name |
+| Name         | Type                 | Description           |
+|--------------+----------------------+-----------------------|
+| serializable | =YamlSerializable *= | A serializable object |
+| name         | =const gchar *=      | The property name     |
 
-**Returns:** `(transfer none) (nullable)` The `GParamSpec`, or `NULL` if not found.
+*Returns:* =(transfer none) (nullable)= The =GParamSpec=, or =NULL= if not found.
 
----
+--------------
 
-### yaml_serializable_list_properties
-
-```c
+*** yaml_serializable_list_properties
+#+begin_src C
 GParamSpec **yaml_serializable_list_properties(
     YamlSerializable *serializable,
     guint            *n_pspecs
 );
-```
+#+end_src
 
 Lists all serializable properties.
 
-**Parameters:**
+*Parameters:*
 
-| Name | Type | Description |
-|------|------|-------------|
-| serializable | `YamlSerializable *` | A serializable object |
-| n_pspecs | `guint *` `(out)` | Location for the array length |
+| Name         | Type                 | Description                   |
+|--------------+----------------------+-------------------------------|
+| serializable | =YamlSerializable *= | A serializable object         |
+| n_pspecs     | =guint *= =(out)=    | Location for the array length |
 
-**Returns:** `(transfer container) (array length=n_pspecs)` Array of `GParamSpec` pointers. Free with `g_free()`.
+*Returns:* =(transfer container) (array length=n_pspecs)= Array of =GParamSpec= pointers. Free with =g_free()=.
 
----
+--------------
 
-### yaml_serializable_get_property
-
-```c
+*** yaml_serializable_get_property
+#+begin_src C
 void yaml_serializable_get_property(
     YamlSerializable *serializable,
     GParamSpec       *pspec,
     GValue           *value
 );
-```
+#+end_src
 
 Gets a property value.
 
-**Parameters:**
+*Parameters:*
 
-| Name | Type | Description |
-|------|------|-------------|
-| serializable | `YamlSerializable *` | A serializable object |
-| pspec | `GParamSpec *` | The property specification |
-| value | `GValue *` `(out)` | Location for the value |
+| Name         | Type                 | Description                |
+|--------------+----------------------+----------------------------|
+| serializable | =YamlSerializable *= | A serializable object      |
+| pspec        | =GParamSpec *=       | The property specification |
+| value        | =GValue *= =(out)=   | Location for the value     |
 
----
+--------------
 
-### yaml_serializable_set_property
-
-```c
+*** yaml_serializable_set_property
+#+begin_src C
 gboolean yaml_serializable_set_property(
     YamlSerializable *serializable,
     GParamSpec       *pspec,
     const GValue     *value
 );
-```
+#+end_src
 
 Sets a property value.
 
-**Parameters:**
+*Parameters:*
 
-| Name | Type | Description |
-|------|------|-------------|
-| serializable | `YamlSerializable *` | A serializable object |
-| pspec | `GParamSpec *` | The property specification |
-| value | `const GValue *` | The value to set |
+| Name         | Type                 | Description                |
+|--------------+----------------------+----------------------------|
+| serializable | =YamlSerializable *= | A serializable object      |
+| pspec        | =GParamSpec *=       | The property specification |
+| value        | =const GValue *=     | The value to set           |
 
-**Returns:** `TRUE` if the property was handled.
+*Returns:* =TRUE= if the property was handled.
 
----
+--------------
 
-## Default Implementations
-
-### yaml_serializable_default_serialize_property
-
-```c
+** Default Implementations
+*** yaml_serializable_default_serialize_property
+#+begin_src C
 YamlNode *yaml_serializable_default_serialize_property(
     YamlSerializable *serializable,
     const gchar      *property_name,
     const GValue     *value,
     GParamSpec       *pspec
 );
-```
+#+end_src
 
-Default implementation for property serialization. Converts `GValue` to `YamlNode` using standard type mappings.
+Default implementation for property serialization. Converts =GValue= to =YamlNode= using standard type mappings.
 
-**Parameters:**
+*Parameters:*
 
-| Name | Type | Description |
-|------|------|-------------|
-| serializable | `YamlSerializable *` | A serializable object |
-| property_name | `const gchar *` | The property name |
-| value | `const GValue *` | The property value |
-| pspec | `GParamSpec *` | The property specification |
+| Name          | Type                 | Description                |
+|---------------+----------------------+----------------------------|
+| serializable  | =YamlSerializable *= | A serializable object      |
+| property_name | =const gchar *=      | The property name          |
+| value         | =const GValue *=     | The property value         |
+| pspec         | =GParamSpec *=       | The property specification |
 
-**Returns:** `(transfer full) (nullable)` A `YamlNode`, or `NULL`.
+*Returns:* =(transfer full) (nullable)= A =YamlNode=, or =NULL=.
 
-**Example:**
-```c
+*Example:*
+
+#+begin_src C
 static YamlNode *
 my_object_serialize_property(YamlSerializable *serializable,
                              const gchar      *property_name,
@@ -333,13 +321,12 @@ my_object_serialize_property(YamlSerializable *serializable,
         serializable, property_name, value, pspec
     );
 }
-```
+#+end_src
 
----
+--------------
 
-### yaml_serializable_default_deserialize_property
-
-```c
+*** yaml_serializable_default_deserialize_property
+#+begin_src C
 gboolean yaml_serializable_default_deserialize_property(
     YamlSerializable *serializable,
     const gchar      *property_name,
@@ -347,27 +334,26 @@ gboolean yaml_serializable_default_deserialize_property(
     GParamSpec       *pspec,
     YamlNode         *node
 );
-```
+#+end_src
 
-Default implementation for property deserialization. Converts `YamlNode` to `GValue` using standard type mappings.
+Default implementation for property deserialization. Converts =YamlNode= to =GValue= using standard type mappings.
 
-**Parameters:**
+*Parameters:*
 
-| Name | Type | Description |
-|------|------|-------------|
-| serializable | `YamlSerializable *` | A serializable object |
-| property_name | `const gchar *` | The property name |
-| value | `GValue *` `(out)` | Location for the value |
-| pspec | `GParamSpec *` | The property specification |
-| node | `YamlNode *` | The YAML node |
+| Name          | Type                 | Description                |
+|---------------+----------------------+----------------------------|
+| serializable  | =YamlSerializable *= | A serializable object      |
+| property_name | =const gchar *=      | The property name          |
+| value         | =GValue *= =(out)=   | Location for the value     |
+| pspec         | =GParamSpec *=       | The property specification |
+| node          | =YamlNode *=         | The YAML node              |
 
-**Returns:** `TRUE` if successful.
+*Returns:* =TRUE= if successful.
 
----
+--------------
 
-## Complete Implementation Example
-
-```c
+** Complete Implementation Example
+#+begin_src C
 #include <yaml-glib/yaml-glib.h>
 
 /* Forward declaration */
@@ -521,26 +507,24 @@ example_usage(void)
         MY_TYPE_CONFIG, input, -1, NULL
     );
 }
-```
+#+end_src
 
-## Type Mappings
-
+** Type Mappings
 The default implementations map between GObject and YAML types:
 
-| GObject Type | YAML Node Type |
-|--------------|----------------|
-| `G_TYPE_BOOLEAN` | Scalar (true/false) |
-| `G_TYPE_INT`, `G_TYPE_INT64` | Scalar (integer) |
-| `G_TYPE_UINT`, `G_TYPE_UINT64` | Scalar (integer) |
-| `G_TYPE_FLOAT`, `G_TYPE_DOUBLE` | Scalar (float) |
-| `G_TYPE_STRING` | Scalar (string) |
-| `G_TYPE_ENUM` | Scalar (nick) |
-| `G_TYPE_FLAGS` | Scalar (combined nicks) |
-| `G_TYPE_BOXED` | Depends on registered handlers |
-| `G_TYPE_OBJECT` | Mapping (nested) |
+| GObject Type                    | YAML Node Type                 |
+|---------------------------------+--------------------------------|
+| =G_TYPE_BOOLEAN=                | Scalar (true/false)            |
+| =G_TYPE_INT=, =G_TYPE_INT64=    | Scalar (integer)               |
+| =G_TYPE_UINT=, =G_TYPE_UINT64=  | Scalar (integer)               |
+| =G_TYPE_FLOAT=, =G_TYPE_DOUBLE= | Scalar (float)                 |
+| =G_TYPE_STRING=                 | Scalar (string)                |
+| =G_TYPE_ENUM=                   | Scalar (nick)                  |
+| =G_TYPE_FLAGS=                  | Scalar (combined nicks)        |
+| =G_TYPE_BOXED=                  | Depends on registered handlers |
+| =G_TYPE_OBJECT=                 | Mapping (nested)               |
 
-## See Also
-
-- [GObject Serialization](gobject.md) - High-level serialization functions
-- [GObject Serialization Guide](../guides/gobject-serialization.md) - Complete guide
-- [YamlNode](node.md) - Node types
+** See Also
+- [[file:gobject.org][GObject Serialization]] - High-level serialization functions
+- [[../guides/gobject-serialization.org][GObject Serialization Guide]] - Complete guide
+- [[file:node.org][YamlNode]] - Node types

@@ -1,22 +1,18 @@
-# JSON-GLib Interoperability Guide
-
+* JSON-GLib Interoperability Guide
 This guide covers converting between yaml-glib and JSON-GLib data structures.
 
-## Overview
-
+** Overview
 yaml-glib provides bidirectional conversion with JSON-GLib:
 
-- Convert `YamlNode` to `JsonNode`
-- Convert `JsonNode` to `YamlNode`
-- Convert `YamlDocument` to/from JSON
+- Convert =YamlNode= to =JsonNode=
+- Convert =JsonNode= to =YamlNode=
+- Convert =YamlDocument= to/from JSON
 
 This enables workflows where you parse YAML, convert to JSON for processing with JSON-based APIs, or vice versa.
 
-## Node Conversion
-
-### YAML to JSON
-
-```c
+** Node Conversion
+*** YAML to JSON
+#+begin_src C
 #include <yaml-glib/yaml-glib.h>
 #include <json-glib/json-glib.h>
 
@@ -53,10 +49,11 @@ example_yaml_to_json(void)
     g_autofree gchar *json_str = json_generator_to_data(gen, NULL);
     g_print("JSON:\n%s\n", json_str);
 }
-```
+#+end_src
 
-**Output:**
-```json
+*Output:*
+
+#+begin_src json
 {
   "name": "John Doe",
   "age": 30,
@@ -66,11 +63,10 @@ example_yaml_to_json(void)
     "admin"
   ]
 }
-```
+#+end_src
 
-### JSON to YAML
-
-```c
+*** JSON to YAML
+#+begin_src C
 YamlNode *
 json_to_yaml(JsonNode *json_node)
 {
@@ -105,10 +101,11 @@ example_json_to_yaml(void)
     g_autofree gchar *yaml_str = yaml_generator_to_data(gen, NULL, NULL);
     g_print("YAML:\n%s\n", yaml_str);
 }
-```
+#+end_src
 
-**Output:**
-```yaml
+*Output:*
+
+#+begin_src yaml
 name: Jane Smith
 scores:
   - 95
@@ -116,13 +113,11 @@ scores:
   - 92
 metadata:
   created: '2024-01-15'
-```
+#+end_src
 
-## Document Conversion
-
-### YamlDocument to JSON
-
-```c
+** Document Conversion
+*** YamlDocument to JSON
+#+begin_src C
 void
 document_to_json(void)
 {
@@ -136,11 +131,10 @@ document_to_json(void)
 
     /* Process with JSON-GLib... */
 }
-```
+#+end_src
 
-### JSON to YamlDocument
-
-```c
+*** JSON to YamlDocument
+#+begin_src C
 void
 json_to_document(void)
 {
@@ -164,35 +158,31 @@ json_to_document(void)
     g_autofree gchar *yaml = yaml_generator_to_data(gen, NULL, NULL);
     g_print("%s\n", yaml);
 }
-```
+#+end_src
 
-## Type Mappings
-
-| YAML Type | JSON Type |
-|-----------|-----------|
-| Scalar (string) | String |
+** Type Mappings
+| YAML Type        | JSON Type        |
+|------------------+------------------|
+| Scalar (string)  | String           |
 | Scalar (integer) | Number (integer) |
-| Scalar (float) | Number (double) |
-| Scalar (boolean) | Boolean |
-| Scalar (null) | Null |
-| Mapping | Object |
-| Sequence | Array |
+| Scalar (float)   | Number (double)  |
+| Scalar (boolean) | Boolean          |
+| Scalar (null)    | Null             |
+| Mapping          | Object           |
+| Sequence         | Array            |
 
-### Notes on Conversion
+*** Notes on Conversion
+- *YAML anchors/aliases* are resolved during conversion
+- *YAML tags* are not preserved in JSON (JSON has no tag concept)
+- *YAML comments* are not preserved (neither format preserves comments in the tree)
+- *Multi-document YAML* requires converting each document separately
+- *Binary data* in YAML is converted to base64 strings
 
-- **YAML anchors/aliases** are resolved during conversion
-- **YAML tags** are not preserved in JSON (JSON has no tag concept)
-- **YAML comments** are not preserved (neither format preserves comments in the tree)
-- **Multi-document YAML** requires converting each document separately
-- **Binary data** in YAML is converted to base64 strings
-
-## Practical Use Cases
-
-### Configuration Migration
-
+** Practical Use Cases
+*** Configuration Migration
 Convert JSON configs to YAML:
 
-```c
+#+begin_src C
 gboolean
 migrate_json_to_yaml(const gchar *json_file, const gchar *yaml_file)
 {
@@ -221,13 +211,12 @@ migrate_json_to_yaml(const gchar *json_file, const gchar *yaml_file)
 
     return TRUE;
 }
-```
+#+end_src
 
-### API Response Handling
-
+*** API Response Handling
 Parse JSON API responses, convert to YAML for configuration:
 
-```c
+#+begin_src C
 YamlNode *
 process_api_response(const gchar *json_response)
 {
@@ -241,11 +230,10 @@ process_api_response(const gchar *json_response)
     JsonNode *root = json_parser_get_root(parser);
     return yaml_node_from_json_node(root);
 }
-```
+#+end_src
 
-### Schema Conversion
-
-```c
+*** Schema Conversion
+#+begin_src C
 void
 convert_json_schema_to_yaml(void)
 {
@@ -273,10 +261,11 @@ convert_json_schema_to_yaml(void)
     g_autofree gchar *output = yaml_generator_to_data(gen, NULL, NULL);
     g_print("%s\n", output);
 }
-```
+#+end_src
 
-**Output:**
-```yaml
+*Output:*
+
+#+begin_src yaml
 type: object
 properties:
   name:
@@ -286,13 +275,11 @@ properties:
     minimum: 1
 required:
   - name
-```
+#+end_src
 
-## Working with JSON-GLib Objects
-
-### Converting JsonObject to YamlMapping
-
-```c
+** Working with JSON-GLib Objects
+*** Converting JsonObject to YamlMapping
+#+begin_src C
 YamlMapping *
 json_object_to_yaml_mapping(JsonObject *obj)
 {
@@ -302,11 +289,10 @@ json_object_to_yaml_mapping(JsonObject *obj)
     g_autoptr(YamlNode) yaml = yaml_node_from_json_node(node);
     return yaml_node_dup_mapping(yaml);
 }
-```
+#+end_src
 
-### Converting JsonArray to YamlSequence
-
-```c
+*** Converting JsonArray to YamlSequence
+#+begin_src C
 YamlSequence *
 json_array_to_yaml_sequence(JsonArray *arr)
 {
@@ -316,11 +302,10 @@ json_array_to_yaml_sequence(JsonArray *arr)
     g_autoptr(YamlNode) yaml = yaml_node_from_json_node(node);
     return yaml_node_dup_sequence(yaml);
 }
-```
+#+end_src
 
-## Complete Example
-
-```c
+** Complete Example
+#+begin_src C
 #include <yaml-glib/yaml-glib.h>
 #include <json-glib/json-glib.h>
 
@@ -423,10 +408,9 @@ main(int argc, char *argv[])
 
     return 0;
 }
-```
+#+end_src
 
-## See Also
-
-- [YamlNode API](../api/node.md) - Node conversion functions
-- [YamlDocument API](../api/document.md) - Document conversion
-- [JSON-GLib Documentation](https://gnome.pages.gitlab.gnome.org/json-glib/)
+** See Also
+- [[../api/node.org][YamlNode API]] - Node conversion functions
+- [[../api/document.org][YamlDocument API]] - Document conversion
+- [[https://gnome.pages.gitlab.gnome.org/json-glib/][JSON-GLib Documentation]]

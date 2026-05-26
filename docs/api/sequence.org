@@ -1,0 +1,635 @@
+* YamlSequence API Reference
+=YamlSequence= is a container for an ordered list of =YamlNode= elements.
+
+** Overview
+#+begin_src C
+#include <yaml-glib/yaml-glib.h>
+
+#define YAML_TYPE_SEQUENCE (yaml_sequence_get_type())
+#+end_src
+
+=YamlSequence= is a reference-counted boxed type. Use =yaml_sequence_ref()= and =yaml_sequence_unref()= to manage its lifetime.
+
+A sequence can be made immutable by calling =yaml_sequence_seal()=. Immutable sequences cannot be modified and are safe to share between threads.
+
+** Type Definition
+#+begin_src C
+typedef struct _YamlSequence YamlSequence;
+#+end_src
+
+** Callback Types
+*** YamlSequenceForeach
+#+begin_src C
+typedef void (*YamlSequenceForeach)(
+    YamlSequence *sequence,
+    guint         index_,
+    YamlNode     *element_node,
+    gpointer      user_data
+);
+#+end_src
+
+Callback function type for =yaml_sequence_foreach_element()=.
+
+*Parameters:*
+
+| Name         | Type             | Description                                           |
+|--------------+------------------+-------------------------------------------------------|
+| sequence     | =YamlSequence *= | The iterated sequence                                 |
+| index_       | =guint=          | The index of the current element                      |
+| element_node | =YamlNode *=     | The current element                                   |
+| user_data    | =gpointer=       | User data passed to =yaml_sequence_foreach_element()= |
+
+--------------
+
+** Construction
+*** yaml_sequence_new
+#+begin_src C
+YamlSequence *yaml_sequence_new(void);
+#+end_src
+
+Creates a new empty =YamlSequence=.
+
+*Returns:* =(transfer full)= A new =YamlSequence=. Use =yaml_sequence_unref()= when done.
+
+*Example:*
+
+#+begin_src C
+g_autoptr(YamlSequence) tags = yaml_sequence_new();
+yaml_sequence_add_string_element(tags, "important");
+yaml_sequence_add_string_element(tags, "urgent");
+#+end_src
+
+--------------
+
+*** yaml_sequence_sized_new
+#+begin_src C
+YamlSequence *yaml_sequence_sized_new(guint n_elements);
+#+end_src
+
+Creates a new =YamlSequence= with pre-allocated capacity.
+
+*Parameters:*
+
+| Name       | Type    | Description          |
+|------------+---------+----------------------|
+| n_elements | =guint= | The initial capacity |
+
+*Returns:* =(transfer full)= A new =YamlSequence=.
+
+*Example:*
+
+#+begin_src C
+/* Pre-allocate for 100 elements */
+g_autoptr(YamlSequence) large_list = yaml_sequence_sized_new(100);
+#+end_src
+
+--------------
+
+** Reference Counting
+*** yaml_sequence_ref
+#+begin_src C
+YamlSequence *yaml_sequence_ref(YamlSequence *sequence);
+#+end_src
+
+Increases the reference count by one.
+
+*Parameters:*
+
+| Name     | Type             | Description |
+|----------+------------------+-------------|
+| sequence | =YamlSequence *= | A sequence  |
+
+*Returns:* =(transfer full)= The same sequence.
+
+--------------
+
+*** yaml_sequence_unref
+#+begin_src C
+void yaml_sequence_unref(YamlSequence *sequence);
+#+end_src
+
+Decreases the reference count by one. When the count reaches zero, the sequence is freed.
+
+*Parameters:*
+
+| Name     | Type             | Description |
+|----------+------------------+-------------|
+| sequence | =YamlSequence *= | A sequence  |
+
+--------------
+
+** Immutability
+*** yaml_sequence_seal
+#+begin_src C
+void yaml_sequence_seal(YamlSequence *sequence);
+#+end_src
+
+Makes the sequence immutable. Also seals all contained nodes.
+
+*Parameters:*
+
+| Name     | Type             | Description |
+|----------+------------------+-------------|
+| sequence | =YamlSequence *= | A sequence  |
+
+--------------
+
+*** yaml_sequence_is_immutable
+#+begin_src C
+gboolean yaml_sequence_is_immutable(YamlSequence *sequence);
+#+end_src
+
+Checks whether the sequence is immutable (sealed).
+
+*Parameters:*
+
+| Name     | Type             | Description |
+|----------+------------------+-------------|
+| sequence | =YamlSequence *= | A sequence  |
+
+*Returns:* =TRUE= if the sequence is immutable.
+
+--------------
+
+** Size and Element Access
+*** yaml_sequence_get_length
+#+begin_src C
+guint yaml_sequence_get_length(YamlSequence *sequence);
+#+end_src
+
+Gets the number of elements.
+
+*Parameters:*
+
+| Name     | Type             | Description |
+|----------+------------------+-------------|
+| sequence | =YamlSequence *= | A sequence  |
+
+*Returns:* The number of elements.
+
+--------------
+
+*** yaml_sequence_add_element
+#+begin_src C
+void yaml_sequence_add_element(YamlSequence *sequence, YamlNode *node);
+#+end_src
+
+Appends a node to the end of the sequence. Takes a reference on the node.
+
+*Parameters:*
+
+| Name     | Type             | Description     |
+|----------+------------------+-----------------|
+| sequence | =YamlSequence *= | A sequence      |
+| node     | =YamlNode *=     | The node to add |
+
+*Example:*
+
+#+begin_src C
+g_autoptr(YamlNode) item = yaml_node_new_string("new item");
+yaml_sequence_add_element(sequence, item);
+#+end_src
+
+--------------
+
+*** yaml_sequence_get_element
+#+begin_src C
+YamlNode *yaml_sequence_get_element(YamlSequence *sequence, guint index_);
+#+end_src
+
+Gets the element at the specified index.
+
+*Parameters:*
+
+| Name     | Type             | Description       |
+|----------+------------------+-------------------|
+| sequence | =YamlSequence *= | A sequence        |
+| index_   | =guint=          | The element index |
+
+*Returns:* =(transfer none) (nullable)= The element node, or =NULL= if out of bounds.
+
+*Example:*
+
+#+begin_src C
+guint len = yaml_sequence_get_length(sequence);
+for (guint i = 0; i < len; i++)
+{
+    YamlNode *item = yaml_sequence_get_element(sequence, i);
+    g_print("Item %u: %s\n", i, yaml_node_get_string(item));
+}
+#+end_src
+
+--------------
+
+*** yaml_sequence_dup_element
+#+begin_src C
+YamlNode *yaml_sequence_dup_element(YamlSequence *sequence, guint index_);
+#+end_src
+
+Gets a new reference to the element at the specified index.
+
+*Parameters:*
+
+| Name     | Type             | Description       |
+|----------+------------------+-------------------|
+| sequence | =YamlSequence *= | A sequence        |
+| index_   | =guint=          | The element index |
+
+*Returns:* =(transfer full) (nullable)= A new reference to the element, or =NULL=. Free with =yaml_node_unref()=.
+
+--------------
+
+*** yaml_sequence_remove_element
+#+begin_src C
+void yaml_sequence_remove_element(YamlSequence *sequence, guint index_);
+#+end_src
+
+Removes the element at the specified index.
+
+*Parameters:*
+
+| Name     | Type             | Description                 |
+|----------+------------------+-----------------------------|
+| sequence | =YamlSequence *= | A sequence                  |
+| index_   | =guint=          | The element index to remove |
+
+--------------
+
+*** yaml_sequence_get_elements
+#+begin_src C
+GList *yaml_sequence_get_elements(YamlSequence *sequence);
+#+end_src
+
+Gets a list of all elements.
+
+*Parameters:*
+
+| Name     | Type             | Description |
+|----------+------------------+-------------|
+| sequence | =YamlSequence *= | A sequence  |
+
+*Returns:* =(transfer container) (element-type YamlNode)= A newly allocated =GList= of =YamlNode=. The nodes are owned by the sequence. Free the list with =g_list_free()=.
+
+--------------
+
+** Convenience Adders
+*** yaml_sequence_add_string_element
+#+begin_src C
+void yaml_sequence_add_string_element(YamlSequence *sequence, const gchar *value);
+#+end_src
+
+Appends a string value.
+
+*Parameters:*
+
+| Name     | Type             | Description             |
+|----------+------------------+-------------------------|
+| sequence | =YamlSequence *= | A sequence              |
+| value    | =const gchar *=  | The string value to add |
+
+*Example:*
+
+#+begin_src C
+g_autoptr(YamlSequence) hobbies = yaml_sequence_new();
+yaml_sequence_add_string_element(hobbies, "reading");
+yaml_sequence_add_string_element(hobbies, "hiking");
+yaml_sequence_add_string_element(hobbies, "photography");
+#+end_src
+
+--------------
+
+*** yaml_sequence_add_int_element
+#+begin_src C
+void yaml_sequence_add_int_element(YamlSequence *sequence, gint64 value);
+#+end_src
+
+Appends an integer value.
+
+*Parameters:*
+
+| Name     | Type             | Description              |
+|----------+------------------+--------------------------|
+| sequence | =YamlSequence *= | A sequence               |
+| value    | =gint64=         | The integer value to add |
+
+--------------
+
+*** yaml_sequence_add_double_element
+#+begin_src C
+void yaml_sequence_add_double_element(YamlSequence *sequence, gdouble value);
+#+end_src
+
+Appends a double value.
+
+*Parameters:*
+
+| Name     | Type             | Description             |
+|----------+------------------+-------------------------|
+| sequence | =YamlSequence *= | A sequence              |
+| value    | =gdouble=        | The double value to add |
+
+--------------
+
+*** yaml_sequence_add_boolean_element
+#+begin_src C
+void yaml_sequence_add_boolean_element(YamlSequence *sequence, gboolean value);
+#+end_src
+
+Appends a boolean value.
+
+*Parameters:*
+
+| Name     | Type             | Description              |
+|----------+------------------+--------------------------|
+| sequence | =YamlSequence *= | A sequence               |
+| value    | =gboolean=       | The boolean value to add |
+
+--------------
+
+*** yaml_sequence_add_null_element
+#+begin_src C
+void yaml_sequence_add_null_element(YamlSequence *sequence);
+#+end_src
+
+Appends a null value.
+
+*Parameters:*
+
+| Name     | Type             | Description |
+|----------+------------------+-------------|
+| sequence | =YamlSequence *= | A sequence  |
+
+--------------
+
+*** yaml_sequence_add_mapping_element
+#+begin_src C
+void yaml_sequence_add_mapping_element(YamlSequence *sequence, YamlMapping *value);
+#+end_src
+
+Appends a mapping value.
+
+*Parameters:*
+
+| Name     | Type             | Description              |
+|----------+------------------+--------------------------|
+| sequence | =YamlSequence *= | A sequence               |
+| value    | =YamlMapping *=  | The mapping value to add |
+
+*Example:*
+
+#+begin_src C
+/* Create a list of users */
+g_autoptr(YamlSequence) users = yaml_sequence_new();
+
+for (int i = 0; i < 3; i++)
+{
+    g_autoptr(YamlMapping) user = yaml_mapping_new();
+    g_autofree gchar *name = g_strdup_printf("User %d", i);
+    yaml_mapping_set_string_member(user, "name", name);
+    yaml_mapping_set_int_member(user, "id", i);
+    yaml_sequence_add_mapping_element(users, user);
+}
+#+end_src
+
+--------------
+
+*** yaml_sequence_add_sequence_element
+#+begin_src C
+void yaml_sequence_add_sequence_element(YamlSequence *sequence, YamlSequence *value);
+#+end_src
+
+Appends a sequence value (nested sequence).
+
+*Parameters:*
+
+| Name     | Type             | Description               |
+|----------+------------------+---------------------------|
+| sequence | =YamlSequence *= | A sequence                |
+| value    | =YamlSequence *= | The sequence value to add |
+
+--------------
+
+** Convenience Getters
+*** yaml_sequence_get_string_element
+#+begin_src C
+const gchar *yaml_sequence_get_string_element(YamlSequence *sequence, guint index_);
+#+end_src
+
+Gets the string value at the specified index.
+
+*Parameters:*
+
+| Name     | Type             | Description       |
+|----------+------------------+-------------------|
+| sequence | =YamlSequence *= | A sequence        |
+| index_   | =guint=          | The element index |
+
+*Returns:* =(transfer none) (nullable)= The string value, or =NULL=.
+
+--------------
+
+*** yaml_sequence_get_int_element
+#+begin_src C
+gint64 yaml_sequence_get_int_element(YamlSequence *sequence, guint index_);
+#+end_src
+
+Gets the integer value at the specified index.
+
+*Parameters:*
+
+| Name     | Type             | Description       |
+|----------+------------------+-------------------|
+| sequence | =YamlSequence *= | A sequence        |
+| index_   | =guint=          | The element index |
+
+*Returns:* The integer value, or 0 if not found or not an integer.
+
+--------------
+
+*** yaml_sequence_get_double_element
+#+begin_src C
+gdouble yaml_sequence_get_double_element(YamlSequence *sequence, guint index_);
+#+end_src
+
+Gets the double value at the specified index.
+
+*Parameters:*
+
+| Name     | Type             | Description       |
+|----------+------------------+-------------------|
+| sequence | =YamlSequence *= | A sequence        |
+| index_   | =guint=          | The element index |
+
+*Returns:* The double value, or 0.0 if not found or not a number.
+
+--------------
+
+*** yaml_sequence_get_boolean_element
+#+begin_src C
+gboolean yaml_sequence_get_boolean_element(YamlSequence *sequence, guint index_);
+#+end_src
+
+Gets the boolean value at the specified index.
+
+*Parameters:*
+
+| Name     | Type             | Description       |
+|----------+------------------+-------------------|
+| sequence | =YamlSequence *= | A sequence        |
+| index_   | =guint=          | The element index |
+
+*Returns:* The boolean value, or =FALSE= if not found.
+
+--------------
+
+*** yaml_sequence_get_null_element
+#+begin_src C
+gboolean yaml_sequence_get_null_element(YamlSequence *sequence, guint index_);
+#+end_src
+
+Checks if the element at the index is null.
+
+*Parameters:*
+
+| Name     | Type             | Description       |
+|----------+------------------+-------------------|
+| sequence | =YamlSequence *= | A sequence        |
+| index_   | =guint=          | The element index |
+
+*Returns:* =TRUE= if the element is null.
+
+--------------
+
+*** yaml_sequence_get_mapping_element
+#+begin_src C
+YamlMapping *yaml_sequence_get_mapping_element(YamlSequence *sequence, guint index_);
+#+end_src
+
+Gets the mapping value at the specified index.
+
+*Parameters:*
+
+| Name     | Type             | Description       |
+|----------+------------------+-------------------|
+| sequence | =YamlSequence *= | A sequence        |
+| index_   | =guint=          | The element index |
+
+*Returns:* =(transfer none) (nullable)= The mapping value, or =NULL=.
+
+--------------
+
+*** yaml_sequence_get_sequence_element
+#+begin_src C
+YamlSequence *yaml_sequence_get_sequence_element(YamlSequence *sequence, guint index_);
+#+end_src
+
+Gets the sequence value at the specified index (nested sequence).
+
+*Parameters:*
+
+| Name     | Type             | Description       |
+|----------+------------------+-------------------|
+| sequence | =YamlSequence *= | A sequence        |
+| index_   | =guint=          | The element index |
+
+*Returns:* =(transfer none) (nullable)= The sequence value, or =NULL=.
+
+--------------
+
+** Iteration
+*** yaml_sequence_foreach_element
+#+begin_src C
+void yaml_sequence_foreach_element(
+    YamlSequence        *sequence,
+    YamlSequenceForeach  func,
+    gpointer             user_data
+);
+#+end_src
+
+Calls a function for each element in the sequence.
+
+*Parameters:*
+
+| Name      | Type                  | Description                       |
+|-----------+-----------------------+-----------------------------------|
+| sequence  | =YamlSequence *=      | A sequence                        |
+| func      | =YamlSequenceForeach= | The callback function             |
+| user_data | =gpointer=            | User data to pass to the callback |
+
+*Example:*
+
+#+begin_src C
+static void
+print_element(
+    YamlSequence *sequence,
+    guint         index_,
+    YamlNode     *node,
+    gpointer      user_data
+)
+{
+    (void)sequence;
+    (void)user_data;
+    g_print("[%u] %s\n", index_, yaml_node_get_string(node));
+}
+
+yaml_sequence_foreach_element(sequence, print_element, NULL);
+#+end_src
+
+--------------
+
+** Equality and Hashing
+*** yaml_sequence_hash
+#+begin_src C
+guint yaml_sequence_hash(gconstpointer key);
+#+end_src
+
+Computes a hash value for the sequence.
+
+*Parameters:*
+
+| Name | Type            | Description      |
+|------+-----------------+------------------|
+| key  | =gconstpointer= | A =YamlSequence= |
+
+*Returns:* A hash value.
+
+--------------
+
+*** yaml_sequence_equal
+#+begin_src C
+gboolean yaml_sequence_equal(gconstpointer a, gconstpointer b);
+#+end_src
+
+Checks if two sequences have equal content.
+
+*Parameters:*
+
+| Name | Type            | Description            |
+|------+-----------------+------------------------|
+| a    | =gconstpointer= | A =YamlSequence=       |
+| b    | =gconstpointer= | Another =YamlSequence= |
+
+*Returns:* =TRUE= if the sequences are equal.
+
+--------------
+
+** Autoptr Support
+#+begin_src C
+G_DEFINE_AUTOPTR_CLEANUP_FUNC(YamlSequence, yaml_sequence_unref)
+#+end_src
+
+Use =g_autoptr(YamlSequence)= for automatic cleanup:
+
+#+begin_src C
+void example(void)
+{
+    g_autoptr(YamlSequence) sequence = yaml_sequence_new();
+    yaml_sequence_add_string_element(sequence, "item");
+    /* sequence automatically freed when leaving scope */
+}
+#+end_src
+
+** See Also
+- [[file:node.org][YamlNode]] - Generic container
+- [[file:mapping.org][YamlMapping]] - Key-value pairs
+- [[../memory-management.org][Memory Management]] - Ownership patterns

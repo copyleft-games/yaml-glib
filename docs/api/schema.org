@@ -1,138 +1,129 @@
-# YamlSchema API Reference
+* YamlSchema API Reference
+=YamlSchema= provides schema validation for YAML nodes.
 
-`YamlSchema` provides schema validation for YAML nodes.
-
-## Overview
-
-```c
+** Overview
+#+begin_src C
 #include <yaml-glib/yaml-glib.h>
 
 #define YAML_TYPE_SCHEMA (yaml_schema_get_type())
 
 G_DECLARE_DERIVABLE_TYPE(YamlSchema, yaml_schema, YAML, SCHEMA, GObject)
-```
+#+end_src
 
-`YamlSchema` allows you to define expected structure, required fields, type constraints, and value constraints for YAML data.
+=YamlSchema= allows you to define expected structure, required fields, type constraints, and value constraints for YAML data.
 
-## Construction
-
-### yaml_schema_new
-
-```c
+** Construction
+*** yaml_schema_new
+#+begin_src C
 YamlSchema *yaml_schema_new(void);
-```
+#+end_src
 
-Creates a new empty `YamlSchema`.
+Creates a new empty =YamlSchema=.
 
-**Returns:** `(transfer full)` A new `YamlSchema`.
+*Returns:* =(transfer full)= A new =YamlSchema=.
 
----
+--------------
 
-### yaml_schema_new_for_mapping
-
-```c
+*** yaml_schema_new_for_mapping
+#+begin_src C
 YamlSchema *yaml_schema_new_for_mapping(void);
-```
+#+end_src
 
 Creates a schema that expects a mapping root.
 
-**Returns:** `(transfer full)` A new `YamlSchema`.
+*Returns:* =(transfer full)= A new =YamlSchema=.
 
-**Example:**
-```c
+*Example:*
+
+#+begin_src C
 g_autoptr(YamlSchema) schema = yaml_schema_new_for_mapping();
 yaml_schema_add_property(schema, "name", YAML_NODE_SCALAR, TRUE);
 yaml_schema_add_property(schema, "age", YAML_NODE_SCALAR, FALSE);
-```
+#+end_src
 
----
+--------------
 
-### yaml_schema_new_for_sequence
-
-```c
+*** yaml_schema_new_for_sequence
+#+begin_src C
 YamlSchema *yaml_schema_new_for_sequence(void);
-```
+#+end_src
 
 Creates a schema that expects a sequence root.
 
-**Returns:** `(transfer full)` A new `YamlSchema`.
+*Returns:* =(transfer full)= A new =YamlSchema=.
 
----
+--------------
 
-### yaml_schema_new_for_scalar
-
-```c
+*** yaml_schema_new_for_scalar
+#+begin_src C
 YamlSchema *yaml_schema_new_for_scalar(void);
-```
+#+end_src
 
 Creates a schema that expects a scalar root.
 
-**Returns:** `(transfer full)` A new `YamlSchema`.
+*Returns:* =(transfer full)= A new =YamlSchema=.
 
----
+--------------
 
-## Type Configuration
-
-### yaml_schema_set_expected_type / yaml_schema_get_expected_type
-
-```c
+** Type Configuration
+*** yaml_schema_set_expected_type / yaml_schema_get_expected_type
+#+begin_src C
 void yaml_schema_set_expected_type(YamlSchema *schema, YamlNodeType type);
 YamlNodeType yaml_schema_get_expected_type(YamlSchema *schema);
-```
+#+end_src
 
 Set/get the expected root node type.
 
----
+--------------
 
-## Mapping Property Definitions
-
-### yaml_schema_add_property
-
-```c
+** Mapping Property Definitions
+*** yaml_schema_add_property
+#+begin_src C
 void yaml_schema_add_property(
     YamlSchema   *schema,
     const gchar  *name,
     YamlNodeType  type,
     gboolean      required
 );
-```
+#+end_src
 
 Adds a property definition to a mapping schema.
 
-**Parameters:**
+*Parameters:*
 
-| Name | Type | Description |
-|------|------|-------------|
-| schema | `YamlSchema *` | A schema |
-| name | `const gchar *` | The property name |
-| type | `YamlNodeType` | Expected property type |
-| required | `gboolean` | Whether the property is required |
+| Name     | Type            | Description                      |
+|----------+-----------------+----------------------------------|
+| schema   | =YamlSchema *=  | A schema                         |
+| name     | =const gchar *= | The property name                |
+| type     | =YamlNodeType=  | Expected property type           |
+| required | =gboolean=      | Whether the property is required |
 
-**Example:**
-```c
+*Example:*
+
+#+begin_src C
 g_autoptr(YamlSchema) schema = yaml_schema_new_for_mapping();
 yaml_schema_add_property(schema, "name", YAML_NODE_SCALAR, TRUE);
 yaml_schema_add_property(schema, "email", YAML_NODE_SCALAR, FALSE);
 yaml_schema_add_property(schema, "tags", YAML_NODE_SEQUENCE, FALSE);
-```
+#+end_src
 
----
+--------------
 
-### yaml_schema_add_property_with_schema
-
-```c
+*** yaml_schema_add_property_with_schema
+#+begin_src C
 void yaml_schema_add_property_with_schema(
     YamlSchema  *schema,
     const gchar *name,
     YamlSchema  *property_schema,
     gboolean     required
 );
-```
+#+end_src
 
 Adds a property with a nested schema for validation.
 
-**Example:**
-```c
+*Example:*
+
+#+begin_src C
 /* Address schema */
 g_autoptr(YamlSchema) address_schema = yaml_schema_new_for_mapping();
 yaml_schema_add_property(address_schema, "city", YAML_NODE_SCALAR, TRUE);
@@ -142,196 +133,188 @@ yaml_schema_add_property(address_schema, "zip", YAML_NODE_SCALAR, TRUE);
 g_autoptr(YamlSchema) person_schema = yaml_schema_new_for_mapping();
 yaml_schema_add_property(person_schema, "name", YAML_NODE_SCALAR, TRUE);
 yaml_schema_add_property_with_schema(person_schema, "address", address_schema, TRUE);
-```
+#+end_src
 
----
+--------------
 
-### yaml_schema_set_allow_additional_properties / yaml_schema_get_allow_additional_properties
-
-```c
+*** yaml_schema_set_allow_additional_properties / yaml_schema_get_allow_additional_properties
+#+begin_src C
 void yaml_schema_set_allow_additional_properties(YamlSchema *schema, gboolean allow);
 gboolean yaml_schema_get_allow_additional_properties(YamlSchema *schema);
-```
+#+end_src
 
-Set/get whether unmapped properties are allowed. Default is `TRUE`.
+Set/get whether unmapped properties are allowed. Default is =TRUE=.
 
-**Example:**
-```c
+*Example:*
+
+#+begin_src C
 yaml_schema_set_allow_additional_properties(schema, FALSE);
 /* Now extra properties will cause validation to fail */
-```
+#+end_src
 
----
+--------------
 
-## Sequence Constraints
-
-### yaml_schema_set_element_type
-
-```c
+** Sequence Constraints
+*** yaml_schema_set_element_type
+#+begin_src C
 void yaml_schema_set_element_type(YamlSchema *schema, YamlNodeType type);
-```
+#+end_src
 
 Sets the expected type for sequence elements.
 
----
+--------------
 
-### yaml_schema_set_element_schema
-
-```c
+*** yaml_schema_set_element_schema
+#+begin_src C
 void yaml_schema_set_element_schema(YamlSchema *schema, YamlSchema *element_schema);
-```
+#+end_src
 
 Sets a schema for validating sequence elements.
 
----
+--------------
 
-### yaml_schema_set_min_length / yaml_schema_set_max_length
-
-```c
+*** yaml_schema_set_min_length / yaml_schema_set_max_length
+#+begin_src C
 void yaml_schema_set_min_length(YamlSchema *schema, guint min_length);
 void yaml_schema_set_max_length(YamlSchema *schema, guint max_length);
-```
+#+end_src
 
 Set minimum/maximum sequence length.
 
-**Example:**
-```c
+*Example:*
+
+#+begin_src C
 g_autoptr(YamlSchema) schema = yaml_schema_new_for_sequence();
 yaml_schema_set_min_length(schema, 1);  /* At least 1 element */
 yaml_schema_set_max_length(schema, 10); /* At most 10 elements */
-```
+#+end_src
 
----
+--------------
 
-## Scalar Constraints
-
-### yaml_schema_set_pattern
-
-```c
+** Scalar Constraints
+*** yaml_schema_set_pattern
+#+begin_src C
 void yaml_schema_set_pattern(YamlSchema *schema, const gchar *pattern);
-```
+#+end_src
 
 Sets a regex pattern for scalar validation.
 
-**Example:**
-```c
+*Example:*
+
+#+begin_src C
 g_autoptr(YamlSchema) email_schema = yaml_schema_new_for_scalar();
 yaml_schema_set_pattern(email_schema, "^[a-z]+@[a-z]+\\.[a-z]+$");
-```
+#+end_src
 
----
+--------------
 
-### yaml_schema_add_enum_value
-
-```c
+*** yaml_schema_add_enum_value
+#+begin_src C
 void yaml_schema_add_enum_value(YamlSchema *schema, const gchar *value);
-```
+#+end_src
 
 Adds an allowed value for enum validation.
 
-**Example:**
-```c
+*Example:*
+
+#+begin_src C
 g_autoptr(YamlSchema) status_schema = yaml_schema_new_for_scalar();
 yaml_schema_add_enum_value(status_schema, "pending");
 yaml_schema_add_enum_value(status_schema, "active");
 yaml_schema_add_enum_value(status_schema, "completed");
-```
+#+end_src
 
----
+--------------
 
-### yaml_schema_set_min_value / yaml_schema_set_max_value
-
-```c
+*** yaml_schema_set_min_value / yaml_schema_set_max_value
+#+begin_src C
 void yaml_schema_set_min_value(YamlSchema *schema, gdouble min_value);
 void yaml_schema_set_max_value(YamlSchema *schema, gdouble max_value);
-```
+#+end_src
 
 Set minimum/maximum numeric value for scalars.
 
-**Example:**
-```c
+*Example:*
+
+#+begin_src C
 g_autoptr(YamlSchema) age_schema = yaml_schema_new_for_scalar();
 yaml_schema_set_min_value(age_schema, 0);
 yaml_schema_set_max_value(age_schema, 150);
-```
+#+end_src
 
----
+--------------
 
-### yaml_schema_set_min_string_length / yaml_schema_set_max_string_length
-
-```c
+*** yaml_schema_set_min_string_length / yaml_schema_set_max_string_length
+#+begin_src C
 void yaml_schema_set_min_string_length(YamlSchema *schema, guint min_length);
 void yaml_schema_set_max_string_length(YamlSchema *schema, guint max_length);
-```
+#+end_src
 
 Set minimum/maximum string length for scalars.
 
----
+--------------
 
-## Validation
-
-### yaml_schema_validate
-
-```c
+** Validation
+*** yaml_schema_validate
+#+begin_src C
 gboolean yaml_schema_validate(
     YamlSchema  *schema,
     YamlNode    *node,
     GError     **error
 );
-```
+#+end_src
 
 Validates a node against the schema.
 
-**Parameters:**
+*Parameters:*
 
-| Name | Type | Description |
-|------|------|-------------|
-| schema | `YamlSchema *` | A schema |
-| node | `YamlNode *` | The node to validate |
-| error | `GError **` `(nullable)` | Return location for error |
+| Name   | Type                     | Description               |
+|--------+--------------------------+---------------------------|
+| schema | =YamlSchema *=           | A schema                  |
+| node   | =YamlNode *=             | The node to validate      |
+| error  | =GError **= =(nullable)= | Return location for error |
 
-**Returns:** `TRUE` if valid.
+*Returns:* =TRUE= if valid.
 
-**Example:**
-```c
+*Example:*
+
+#+begin_src C
 g_autoptr(GError) error = NULL;
 if (!yaml_schema_validate(schema, root, &error))
 {
     g_printerr("Validation failed: %s\n", error->message);
 }
-```
+#+end_src
 
----
+--------------
 
-### yaml_schema_validate_with_path
-
-```c
+*** yaml_schema_validate_with_path
+#+begin_src C
 gboolean yaml_schema_validate_with_path(
     YamlSchema  *schema,
     YamlNode    *node,
     const gchar *path,
     GError     **error
 );
-```
+#+end_src
 
 Validates with path tracking for better error messages.
 
-**Parameters:**
+*Parameters:*
 
-| Name | Type | Description |
-|------|------|-------------|
-| schema | `YamlSchema *` | A schema |
-| node | `YamlNode *` | The node to validate |
-| path | `const gchar *` | Current path (e.g., "/users/0") |
-| error | `GError **` `(nullable)` | Return location for error |
+| Name   | Type                     | Description                     |
+|--------+--------------------------+---------------------------------|
+| schema | =YamlSchema *=           | A schema                        |
+| node   | =YamlNode *=             | The node to validate            |
+| path   | =const gchar *=          | Current path (e.g., "/users/0") |
+| error  | =GError **= =(nullable)= | Return location for error       |
 
-**Returns:** `TRUE` if valid.
+*Returns:* =TRUE= if valid.
 
----
+--------------
 
-## Complete Example
-
-```c
+** Complete Example
+#+begin_src C
 #include <yaml-glib/yaml-glib.h>
 
 YamlSchema *
@@ -390,20 +373,19 @@ validate_config(const gchar *filename)
     g_print("Configuration is valid!\n");
     return TRUE;
 }
-```
+#+end_src
 
-## Error Codes
+** Error Codes
+See [[file:types.org#yaml_schema_error][Types Reference]] for error codes:
 
-See [Types Reference](types.md#yaml_schema_error) for error codes:
-- `YAML_SCHEMA_ERROR_TYPE_MISMATCH`
-- `YAML_SCHEMA_ERROR_MISSING_REQUIRED`
-- `YAML_SCHEMA_ERROR_EXTRA_FIELD`
-- `YAML_SCHEMA_ERROR_PATTERN_MISMATCH`
-- `YAML_SCHEMA_ERROR_CONSTRAINT_VIOLATION`
-- `YAML_SCHEMA_ERROR_ENUM_VIOLATION`
-- `YAML_SCHEMA_ERROR_INVALID_SCHEMA`
+- =YAML_SCHEMA_ERROR_TYPE_MISMATCH=
+- =YAML_SCHEMA_ERROR_MISSING_REQUIRED=
+- =YAML_SCHEMA_ERROR_EXTRA_FIELD=
+- =YAML_SCHEMA_ERROR_PATTERN_MISMATCH=
+- =YAML_SCHEMA_ERROR_CONSTRAINT_VIOLATION=
+- =YAML_SCHEMA_ERROR_ENUM_VIOLATION=
+- =YAML_SCHEMA_ERROR_INVALID_SCHEMA=
 
-## See Also
-
-- [Schema Validation Guide](../guides/schema-validation.md) - Complete guide
-- [Error Handling](../error-handling.md) - GError usage
+** See Also
+- [[../guides/schema-validation.org][Schema Validation Guide]] - Complete guide
+- [[../error-handling.org][Error Handling]] - GError usage

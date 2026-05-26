@@ -1,18 +1,15 @@
-# Error Handling
-
+* Error Handling
 yaml-glib uses GLib's GError system for error reporting. This guide explains error domains, error codes, and best practices for handling errors.
 
-## GError Basics
-
+** GError Basics
 GError is GLib's standard mechanism for recoverable runtime errors. It provides:
 
-- **Error domain**: A quark identifying the error source (e.g., parser, generator, schema)
-- **Error code**: A numeric code identifying the specific error type
-- **Error message**: A human-readable description
+- *Error domain*: A quark identifying the error source (e.g., parser, generator, schema)
+- *Error code*: A numeric code identifying the specific error type
+- *Error message*: A human-readable description
 
-### Basic Usage Pattern
-
-```c
+*** Basic Usage Pattern
+#+begin_src C
 void
 example_parse(const gchar *filename)
 {
@@ -27,75 +24,68 @@ example_parse(const gchar *filename)
 
     /* Success - process the data */
 }
-```
+#+end_src
 
-### GError Rules
+*** GError Rules
+1. *Always initialize to NULL*: =GError *error = NULL;=
+2. *Check return value first*: Test the function return before checking error
+3. *Error is set only on failure*: Success leaves error unchanged (NULL)
+4. *Caller owns the error*: You must free it with =g_error_free()= or =g_clear_error()=
+5. *Use g_autoptr for automatic cleanup*: =g_autoptr(GError) error = NULL;=
 
-1. **Always initialize to NULL**: `GError *error = NULL;`
-2. **Check return value first**: Test the function return before checking error
-3. **Error is set only on failure**: Success leaves error unchanged (NULL)
-4. **Caller owns the error**: You must free it with `g_error_free()` or `g_clear_error()`
-5. **Use g_autoptr for automatic cleanup**: `g_autoptr(GError) error = NULL;`
-
-## Error Domains
-
+** Error Domains
 yaml-glib defines three error domains:
 
-### YAML_GLIB_PARSER_ERROR
+*** YAML_GLIB_PARSER_ERROR
+Errors from =YamlParser= operations.
 
-Errors from `YamlParser` operations.
-
-```c
+#+begin_src C
 #define YAML_GLIB_PARSER_ERROR (yaml_glib_parser_error_quark())
-```
+#+end_src
 
-| Code | Constant | Description |
-|------|----------|-------------|
-| 0 | `YAML_GLIB_PARSER_ERROR_INVALID_DATA` | Input data is not valid YAML |
-| 1 | `YAML_GLIB_PARSER_ERROR_PARSE` | General parsing error |
-| 2 | `YAML_GLIB_PARSER_ERROR_SCANNER` | Lexical scanning error |
-| 3 | `YAML_GLIB_PARSER_ERROR_EMPTY_DOCUMENT` | Document is empty |
-| 4 | `YAML_GLIB_PARSER_ERROR_UNKNOWN` | Unknown error |
+| Code | Constant                                | Description                  |
+|------+-----------------------------------------+------------------------------|
+| 0    | =YAML_GLIB_PARSER_ERROR_INVALID_DATA=   | Input data is not valid YAML |
+| 1    | =YAML_GLIB_PARSER_ERROR_PARSE=          | General parsing error        |
+| 2    | =YAML_GLIB_PARSER_ERROR_SCANNER=        | Lexical scanning error       |
+| 3    | =YAML_GLIB_PARSER_ERROR_EMPTY_DOCUMENT= | Document is empty            |
+| 4    | =YAML_GLIB_PARSER_ERROR_UNKNOWN=        | Unknown error                |
 
-### YAML_GENERATOR_ERROR
+*** YAML_GENERATOR_ERROR
+Errors from =YamlGenerator= operations.
 
-Errors from `YamlGenerator` operations.
-
-```c
+#+begin_src C
 #define YAML_GENERATOR_ERROR (yaml_generator_error_quark())
-```
+#+end_src
 
-| Code | Constant | Description |
-|------|----------|-------------|
-| 0 | `YAML_GENERATOR_ERROR_EMIT` | YAML emitter error |
-| 1 | `YAML_GENERATOR_ERROR_INVALID_NODE` | Node structure is invalid |
-| 2 | `YAML_GENERATOR_ERROR_IO` | I/O error during output |
+| Code | Constant                            | Description               |
+|------+-------------------------------------+---------------------------|
+| 0    | =YAML_GENERATOR_ERROR_EMIT=         | YAML emitter error        |
+| 1    | =YAML_GENERATOR_ERROR_INVALID_NODE= | Node structure is invalid |
+| 2    | =YAML_GENERATOR_ERROR_IO=           | I/O error during output   |
 
-### YAML_SCHEMA_ERROR
+*** YAML_SCHEMA_ERROR
+Errors from =YamlSchema= validation.
 
-Errors from `YamlSchema` validation.
-
-```c
+#+begin_src C
 #define YAML_SCHEMA_ERROR (yaml_schema_error_quark())
-```
+#+end_src
 
-| Code | Constant | Description |
-|------|----------|-------------|
-| 0 | `YAML_SCHEMA_ERROR_TYPE_MISMATCH` | Node type doesn't match schema |
-| 1 | `YAML_SCHEMA_ERROR_MISSING_REQUIRED` | Required property missing |
-| 2 | `YAML_SCHEMA_ERROR_EXTRA_FIELD` | Unexpected property found |
-| 3 | `YAML_SCHEMA_ERROR_PATTERN_MISMATCH` | String doesn't match pattern |
-| 4 | `YAML_SCHEMA_ERROR_CONSTRAINT_VIOLATION` | Min/max constraint violated |
-| 5 | `YAML_SCHEMA_ERROR_ENUM_VIOLATION` | Value not in allowed enum |
-| 6 | `YAML_SCHEMA_ERROR_INVALID_SCHEMA` | Schema definition is invalid |
+| Code | Constant                                 | Description                    |
+|------+------------------------------------------+--------------------------------|
+| 0    | =YAML_SCHEMA_ERROR_TYPE_MISMATCH=        | Node type doesn't match schema |
+| 1    | =YAML_SCHEMA_ERROR_MISSING_REQUIRED=     | Required property missing      |
+| 2    | =YAML_SCHEMA_ERROR_EXTRA_FIELD=          | Unexpected property found      |
+| 3    | =YAML_SCHEMA_ERROR_PATTERN_MISMATCH=     | String doesn't match pattern   |
+| 4    | =YAML_SCHEMA_ERROR_CONSTRAINT_VIOLATION= | Min/max constraint violated    |
+| 5    | =YAML_SCHEMA_ERROR_ENUM_VIOLATION=       | Value not in allowed enum      |
+| 6    | =YAML_SCHEMA_ERROR_INVALID_SCHEMA=       | Schema definition is invalid   |
 
-## Checking Error Types
-
-### Using g_error_matches()
-
+** Checking Error Types
+*** Using g_error_matches()
 Check if an error matches a specific domain and code:
 
-```c
+#+begin_src C
 g_autoptr(GError) error = NULL;
 
 if (!yaml_parser_load_from_file(parser, filename, &error))
@@ -116,20 +106,18 @@ if (!yaml_parser_load_from_file(parser, filename, &error))
         g_printerr("Parse error: %s\n", error->message);
     }
 }
-```
+#+end_src
 
-### Checking Domain Only
-
-```c
+*** Checking Domain Only
+#+begin_src C
 if (error != NULL && error->domain == YAML_GLIB_PARSER_ERROR)
 {
     /* Handle any parser error */
 }
-```
+#+end_src
 
-### Switch on Error Codes
-
-```c
+*** Switch on Error Codes
+#+begin_src C
 if (!yaml_schema_validate(schema, node, &error))
 {
     switch (error->code)
@@ -151,15 +139,13 @@ if (!yaml_schema_validate(schema, node, &error))
         break;
     }
 }
-```
+#+end_src
 
-## Error Propagation
-
-### Propagating Errors Up
-
+** Error Propagation
+*** Propagating Errors Up
 When writing functions that can fail, propagate errors to callers:
 
-```c
+#+begin_src C
 gboolean
 load_config(
     const gchar  *filename,
@@ -178,13 +164,12 @@ load_config(
     *out_node = yaml_parser_steal_root(parser);
     return TRUE;
 }
-```
+#+end_src
 
-### Using g_propagate_error()
-
+*** Using g_propagate_error()
 When you have a local error to propagate:
 
-```c
+#+begin_src C
 gboolean
 process_yaml(
     const gchar  *data,
@@ -203,13 +188,12 @@ process_yaml(
     /* Continue processing... */
     return TRUE;
 }
-```
+#+end_src
 
-### Creating Custom Errors
+*** Creating Custom Errors
+Use =g_set_error()= or =g_set_error_literal()=:
 
-Use `g_set_error()` or `g_set_error_literal()`:
-
-```c
+#+begin_src C
 gboolean
 validate_config(
     YamlNode  *config,
@@ -243,13 +227,12 @@ validate_config(
 
     return TRUE;
 }
-```
+#+end_src
 
-### Adding Prefix to Errors
-
+*** Adding Prefix to Errors
 Add context to errors as they propagate:
 
-```c
+#+begin_src C
 gboolean
 load_all_configs(
     const gchar  *directory,
@@ -268,13 +251,11 @@ load_all_configs(
     /* ... */
     return TRUE;
 }
-```
+#+end_src
 
-## Common Error Handling Patterns
-
-### Try-Parse Pattern
-
-```c
+** Common Error Handling Patterns
+*** Try-Parse Pattern
+#+begin_src C
 YamlNode *
 try_parse_yaml(
     const gchar *data,
@@ -299,11 +280,10 @@ if (config == NULL)
 {
     g_printerr("Parse failed: %s\n", error->message);
 }
-```
+#+end_src
 
-### Multiple Operations
-
-```c
+*** Multiple Operations
+#+begin_src C
 gboolean
 process_file(
     const gchar  *input_file,
@@ -340,13 +320,12 @@ process_file(
 
     return TRUE;
 }
-```
+#+end_src
 
-### Ignoring Errors
-
+*** Ignoring Errors
 When you don't care about errors, pass NULL:
 
-```c
+#+begin_src C
 /* Parse, but ignore errors */
 yaml_parser_load_from_data(parser, data, -1, NULL);
 
@@ -356,13 +335,12 @@ if (root != NULL)
 {
     /* Success */
 }
-```
+#+end_src
 
-### Collecting Multiple Errors
-
+*** Collecting Multiple Errors
 For validation scenarios where you want all errors:
 
-```c
+#+begin_src C
 typedef struct {
     GPtrArray *errors;
 } ValidationContext;
@@ -398,13 +376,12 @@ validate_all(YamlNode *root)
 
     return ctx.errors;
 }
-```
+#+end_src
 
-## Parser Error Messages
-
+** Parser Error Messages
 Parser errors include position information when available:
 
-```c
+#+begin_src C
 if (!yaml_parser_load_from_data(parser, data, -1, &error))
 {
     guint line = yaml_parser_get_current_line(parser);
@@ -413,13 +390,12 @@ if (!yaml_parser_load_from_data(parser, data, -1, &error))
     g_printerr("Parse error at line %u, column %u: %s\n",
                line, column, error->message);
 }
-```
+#+end_src
 
-## Async Error Handling
-
+** Async Error Handling
 For async operations, errors are retrieved in the finish function:
 
-```c
+#+begin_src C
 static void
 load_complete(
     GObject      *source,
@@ -440,13 +416,12 @@ load_complete(
     YamlNode *root = yaml_parser_get_root(parser);
     /* ... */
 }
-```
+#+end_src
 
-## GIO Errors
-
+** GIO Errors
 File and stream operations may return GIO errors:
 
-```c
+#+begin_src C
 if (!yaml_parser_load_from_file(parser, filename, &error))
 {
     if (error->domain == G_FILE_ERROR)
@@ -467,34 +442,31 @@ if (!yaml_parser_load_from_file(parser, filename, &error))
         g_printerr("YAML syntax error: %s\n", error->message);
     }
 }
-```
+#+end_src
 
-## Best Practices
+** Best Practices
+1. *Always check return values* - Don't rely on error alone
+2. *Use g_autoptr(GError)* - Prevents memory leaks
+3. *Log with context* - Include file names, line numbers when available
+4. *Propagate errors* - Don't silently swallow errors
+5. *Add prefixes* - Provide context at each level
+6. *Document error conditions* - Note which errors your functions can return
+7. *Handle or propagate* - Either handle an error or pass it up, never both
+8. *Use g_error_matches()* - More readable than manual domain/code checks
 
-1. **Always check return values** - Don't rely on error alone
-2. **Use g_autoptr(GError)** - Prevents memory leaks
-3. **Log with context** - Include file names, line numbers when available
-4. **Propagate errors** - Don't silently swallow errors
-5. **Add prefixes** - Provide context at each level
-6. **Document error conditions** - Note which errors your functions can return
-7. **Handle or propagate** - Either handle an error or pass it up, never both
-8. **Use g_error_matches()** - More readable than manual domain/code checks
+** Quick Reference
+| Function                       | Purpose                                 |
+|--------------------------------+-----------------------------------------|
+| =g_error_new()=                | Create new error with formatted message |
+| =g_set_error()=                | Set error with formatted message        |
+| =g_set_error_literal()=        | Set error with literal message          |
+| =g_propagate_error()=          | Pass error to caller                    |
+| =g_propagate_prefixed_error()= | Pass error with added prefix            |
+| =g_error_matches()=            | Check domain and code                   |
+| =g_error_free()=               | Free an error                           |
+| =g_clear_error()=              | Free and set to NULL                    |
 
-## Quick Reference
-
-| Function | Purpose |
-|----------|---------|
-| `g_error_new()` | Create new error with formatted message |
-| `g_set_error()` | Set error with formatted message |
-| `g_set_error_literal()` | Set error with literal message |
-| `g_propagate_error()` | Pass error to caller |
-| `g_propagate_prefixed_error()` | Pass error with added prefix |
-| `g_error_matches()` | Check domain and code |
-| `g_error_free()` | Free an error |
-| `g_clear_error()` | Free and set to NULL |
-
-## See Also
-
-- [Memory Management](memory-management.md) - g_autoptr patterns
-- [API Reference](api/types.md) - Error code definitions
-- [GLib Error Reporting](https://docs.gtk.org/glib/error-reporting.html) - GLib documentation
+** See Also
+- [[file:memory-management.org][Memory Management]] - g_autoptr patterns
+- [[file:api/types.org][API Reference]] - Error code definitions
+- [[https://docs.gtk.org/glib/error-reporting.html][GLib Error Reporting]] - GLib documentation

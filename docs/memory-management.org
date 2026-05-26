@@ -1,38 +1,36 @@
-# Memory Management
-
+* Memory Management
 yaml-glib uses reference counting for memory management, following GLib/GObject conventions. This guide explains ownership patterns, automatic cleanup, and best practices.
 
-## Reference Counting Basics
-
+** Reference Counting Basics
 All yaml-glib types use reference counting:
 
-- **GObject types** (YamlParser, YamlBuilder, YamlGenerator, YamlDocument, YamlSchema):
-  - Use `g_object_ref()` to increment reference count
-  - Use `g_object_unref()` to decrement reference count
+- *GObject types* (YamlParser, YamlBuilder, YamlGenerator, YamlDocument, YamlSchema):
 
-- **Boxed types** (YamlNode, YamlMapping, YamlSequence):
-  - Use `*_ref()` to increment (e.g., `yaml_node_ref()`)
-  - Use `*_unref()` to decrement (e.g., `yaml_node_unref()`)
+  - Use =g_object_ref()= to increment reference count
+  - Use =g_object_unref()= to decrement reference count
+
+- *Boxed types* (YamlNode, YamlMapping, YamlSequence):
+
+  - Use =*_ref()= to increment (e.g., =yaml_node_ref()=)
+  - Use =*_unref()= to decrement (e.g., =yaml_node_unref()=)
 
 When the reference count reaches zero, the object is freed.
 
-```c
+#+begin_src C
 /* Reference counting example */
 YamlNode *node = yaml_node_new_string("hello");  /* ref_count = 1 */
 yaml_node_ref(node);                              /* ref_count = 2 */
 yaml_node_unref(node);                            /* ref_count = 1 */
 yaml_node_unref(node);                            /* ref_count = 0, freed */
-```
+#+end_src
 
-## Ownership Conventions
-
+** Ownership Conventions
 yaml-glib uses consistent naming conventions to indicate ownership:
 
-### get_* Functions
+*** get_* Functions
+Returns a *borrowed reference*. The caller must NOT free the returned value. The value remains valid as long as the parent object exists.
 
-Returns a **borrowed reference**. The caller must NOT free the returned value. The value remains valid as long as the parent object exists.
-
-```c
+#+begin_src C
 /* yaml_parser_get_root() returns borrowed reference */
 YamlParser *parser = yaml_parser_new();
 yaml_parser_load_from_data(parser, "key: value\n", -1, NULL);
@@ -41,13 +39,12 @@ YamlNode *root = yaml_parser_get_root(parser);  /* borrowed */
 /* Use root, but don't free it */
 
 g_object_unref(parser);  /* root is now invalid */
-```
+#+end_src
 
-### dup_* Functions
+*** dup_* Functions
+Returns a *new reference*. The caller owns the returned value and must free it.
 
-Returns a **new reference**. The caller owns the returned value and must free it.
-
-```c
+#+begin_src C
 /* yaml_parser_dup_root() returns new reference */
 YamlParser *parser = yaml_parser_new();
 yaml_parser_load_from_data(parser, "key: value\n", -1, NULL);
@@ -59,13 +56,12 @@ g_object_unref(parser);  /* root is still valid */
 /* Use root... */
 
 yaml_node_unref(root);  /* caller must free */
-```
+#+end_src
 
-### steal_* Functions
+*** steal_* Functions
+*Steals ownership* from the source object. The caller owns the returned value, and the source no longer contains it.
 
-**Steals ownership** from the source object. The caller owns the returned value, and the source no longer contains it.
-
-```c
+#+begin_src C
 /* yaml_parser_steal_root() transfers ownership */
 YamlParser *parser = yaml_parser_new();
 yaml_parser_load_from_data(parser, "key: value\n", -1, NULL);
@@ -77,13 +73,12 @@ g_assert(yaml_parser_get_root(parser) == NULL);
 
 g_object_unref(parser);
 yaml_node_unref(root);  /* caller owns it now */
-```
+#+end_src
 
-### set_* Functions
+*** set_* Functions
+Takes a *copy of the reference*. The caller retains their reference.
 
-Takes a **copy of the reference**. The caller retains their reference.
-
-```c
+#+begin_src C
 /* yaml_node_set_mapping() copies the reference */
 YamlMapping *mapping = yaml_mapping_new();  /* ref_count = 1 */
 YamlNode *node = yaml_node_new(YAML_NODE_MAPPING);
@@ -92,13 +87,12 @@ yaml_node_set_mapping(node, mapping);  /* mapping ref_count = 2 */
 
 yaml_mapping_unref(mapping);  /* ref_count = 1, node still has reference */
 yaml_node_unref(node);        /* mapping ref_count = 0, freed */
-```
+#+end_src
 
-### take_* Functions
+*** take_* Functions
+*Steals the reference* from the caller. The caller loses their reference.
 
-**Steals the reference** from the caller. The caller loses their reference.
-
-```c
+#+begin_src C
 /* yaml_node_take_mapping() steals the reference */
 YamlMapping *mapping = yaml_mapping_new();  /* ref_count = 1 */
 YamlNode *node = yaml_node_new(YAML_NODE_MAPPING);
@@ -107,15 +101,14 @@ yaml_node_take_mapping(node, mapping);  /* mapping ref_count = 1 (unchanged) */
 
 /* Don't unref mapping - node owns it now */
 yaml_node_unref(node);  /* mapping is freed with node */
-```
+#+end_src
 
-## Automatic Cleanup with g_autoptr
-
+** Automatic Cleanup with g_autoptr
 GLib provides automatic cleanup macros that call the appropriate free function when a variable goes out of scope.
 
-yaml-glib registers all types for use with `g_autoptr()`:
+yaml-glib registers all types for use with =g_autoptr()=:
 
-```c
+#+begin_src C
 void
 example_function(void)
 {
@@ -134,13 +127,12 @@ example_function(void)
     /* Use the objects... */
 
 }  /* All objects automatically freed here */
-```
+#+end_src
 
-### Using g_steal_pointer
-
+*** Using g_steal_pointer
 When you need to return ownership or transfer to another function:
 
-```c
+#+begin_src C
 YamlNode *
 create_config_node(void)
 {
@@ -153,13 +145,11 @@ create_config_node(void)
     /* Transfer ownership to caller, prevent auto-cleanup */
     return g_steal_pointer(&node);
 }
-```
+#+end_src
 
-## Common Patterns
-
-### Parsing and Modifying
-
-```c
+** Common Patterns
+*** Parsing and Modifying
+#+begin_src C
 void
 parse_and_modify(const gchar *filename)
 {
@@ -180,11 +170,10 @@ parse_and_modify(const gchar *filename)
     yaml_mapping_set_string_member(mapping, "modified", "yes");
 
 }  /* parser freed, root and mapping become invalid */
-```
+#+end_src
 
-### Keeping Data After Parser is Freed
-
-```c
+*** Keeping Data After Parser is Freed
+#+begin_src C
 YamlNode *
 load_and_keep(const gchar *filename)
 {
@@ -200,11 +189,10 @@ load_and_keep(const gchar *filename)
     /* Steal the root - parser no longer owns it */
     return yaml_parser_steal_root(parser);
 }  /* parser freed, but returned node remains valid */
-```
+#+end_src
 
-### Building Complex Structures
-
-```c
+*** Building Complex Structures
+#+begin_src C
 YamlNode *
 build_structure(void)
 {
@@ -222,11 +210,10 @@ build_structure(void)
     /* Steal to prevent auto-cleanup */
     return yaml_builder_steal_root(builder);
 }
-```
+#+end_src
 
-### Iterating with Borrowed References
-
-```c
+*** Iterating with Borrowed References
+#+begin_src C
 void
 process_items(YamlSequence *sequence)
 {
@@ -241,11 +228,10 @@ process_items(YamlSequence *sequence)
         g_print("Item %u: %s\n", i, value);
     }
 }
-```
+#+end_src
 
-### Adding to Collections
-
-```c
+*** Adding to Collections
+#+begin_src C
 void
 add_to_mapping(YamlMapping *mapping)
 {
@@ -259,13 +245,12 @@ add_to_mapping(YamlMapping *mapping)
     yaml_mapping_set_member(mapping, "key2", node2);
     yaml_node_unref(node2);  /* Must manually unref */
 }
-```
+#+end_src
 
-## Immutability (Sealing)
-
+** Immutability (Sealing)
 yaml-glib supports making nodes immutable through sealing:
 
-```c
+#+begin_src C
 g_autoptr(YamlNode) node = yaml_node_new_string("hello");
 
 /* Seal the node - it becomes immutable */
@@ -276,17 +261,15 @@ yaml_node_set_string(node, "world");  /* No effect */
 
 const gchar *value = yaml_node_get_string(node);
 g_assert_cmpstr(value, ==, "hello");  /* Still "hello" */
-```
+#+end_src
 
-### Benefits of Sealing
+*** Benefits of Sealing
+1. *Thread Safety*: Sealed nodes can be shared between threads without synchronization
+2. *Performance*: No need for defensive copies
+3. *Data Integrity*: Prevents accidental modifications
 
-1. **Thread Safety**: Sealed nodes can be shared between threads without synchronization
-2. **Performance**: No need for defensive copies
-3. **Data Integrity**: Prevents accidental modifications
-
-### Creating Immutable Documents
-
-```c
+*** Creating Immutable Documents
+#+begin_src C
 /* Parser that produces immutable documents */
 g_autoptr(YamlParser) parser = yaml_parser_new_immutable();
 yaml_parser_load_from_file(parser, "config.yaml", &error);
@@ -299,13 +282,12 @@ g_autoptr(YamlBuilder) builder = yaml_builder_new_immutable();
 /* ... build structure ... */
 YamlNode *node = yaml_builder_get_root(builder);
 g_assert_true(yaml_node_is_immutable(node));
-```
+#+end_src
 
-### Recursive Sealing
-
+*** Recursive Sealing
 Sealing a node also seals all its children:
 
-```c
+#+begin_src C
 g_autoptr(YamlMapping) mapping = yaml_mapping_new();
 yaml_mapping_set_string_member(mapping, "name", "John");
 
@@ -321,50 +303,44 @@ yaml_node_seal(root);
 
 g_assert_true(yaml_mapping_is_immutable(mapping));
 g_assert_true(yaml_sequence_is_immutable(tags));
-```
+#+end_src
 
-## Memory Debugging
-
-### Detecting Leaks
-
+** Memory Debugging
+*** Detecting Leaks
 Use Valgrind to detect memory leaks:
 
-```bash
+#+begin_src sh
 G_DEBUG=gc-friendly G_SLICE=always-malloc valgrind --leak-check=full ./myprogram
-```
+#+end_src
 
-### GLib Memory Debugging
-
+*** GLib Memory Debugging
 Enable GLib memory debugging:
 
-```bash
+#+begin_src sh
 G_DEBUG=fatal-warnings,fatal-criticals ./myprogram
-```
+#+end_src
 
-## Best Practices
+** Best Practices
+1. *Use g_autoptr() whenever possible* - It prevents leaks from early returns
+2. *Use g_steal_pointer() for ownership transfer* - Makes intent clear
+3. *Prefer borrowed references* - Use =get_*= when you don't need to outlive the parent
+4. *Use steal for long-lived data* - When data should outlive the parser
+5. *Seal shared data* - Make immutable before sharing between threads
+6. *Match ref/unref calls* - Every =*_ref()= needs a matching =*_unref()=
+7. *Don't free borrowed references* - Check function documentation
 
-1. **Use g_autoptr() whenever possible** - It prevents leaks from early returns
-2. **Use g_steal_pointer() for ownership transfer** - Makes intent clear
-3. **Prefer borrowed references** - Use `get_*` when you don't need to outlive the parent
-4. **Use steal for long-lived data** - When data should outlive the parser
-5. **Seal shared data** - Make immutable before sharing between threads
-6. **Match ref/unref calls** - Every `*_ref()` needs a matching `*_unref()`
-7. **Don't free borrowed references** - Check function documentation
+** Quick Reference
+| Function Pattern | Returns             | Caller Action                 |
+|------------------+---------------------+-------------------------------|
+| =*_get_*()=      | Borrowed            | Don't free                    |
+| =*_dup_*()=      | New reference       | Must free                     |
+| =*_steal_*()=    | Transfers ownership | Must free                     |
+| =*_set_*()=      | N/A                 | Keep caller's reference       |
+| =*_take_*()=     | N/A                 | Don't free (ownership stolen) |
+| =*_new*()=       | New object          | Must free                     |
+| =*_copy()=       | Deep copy           | Must free                     |
 
-## Quick Reference
-
-| Function Pattern | Returns | Caller Action |
-|-----------------|---------|---------------|
-| `*_get_*()` | Borrowed | Don't free |
-| `*_dup_*()` | New reference | Must free |
-| `*_steal_*()` | Transfers ownership | Must free |
-| `*_set_*()` | N/A | Keep caller's reference |
-| `*_take_*()` | N/A | Don't free (ownership stolen) |
-| `*_new*()` | New object | Must free |
-| `*_copy()` | Deep copy | Must free |
-
-## See Also
-
-- [Error Handling](error-handling.md) - GError usage patterns
-- [API Reference](api/node.md) - Detailed function documentation
-- [GLib Memory](https://docs.gtk.org/glib/memory.html) - GLib memory management documentation
+** See Also
+- [[file:error-handling.org][Error Handling]] - GError usage patterns
+- [[file:api/node.org][API Reference]] - Detailed function documentation
+- [[https://docs.gtk.org/glib/memory.html][GLib Memory]] - GLib memory management documentation

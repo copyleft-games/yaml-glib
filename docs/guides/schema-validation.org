@@ -1,23 +1,19 @@
-# Schema Validation Guide
-
+* Schema Validation Guide
 This guide covers validating YAML data against schemas using yaml-glib.
 
-## Overview
+** Overview
+=YamlSchema= provides declarative validation for YAML structures:
 
-`YamlSchema` provides declarative validation for YAML structures:
+- *Type validation* - Ensure nodes are mappings, sequences, or scalars
+- *Required properties* - Mark mandatory fields
+- *Type constraints* - Validate property types
+- *Value constraints* - Patterns, enums, min/max values
+- *Nested schemas* - Validate complex hierarchies
+- *Sequence constraints* - Element types and length limits
 
-- **Type validation** - Ensure nodes are mappings, sequences, or scalars
-- **Required properties** - Mark mandatory fields
-- **Type constraints** - Validate property types
-- **Value constraints** - Patterns, enums, min/max values
-- **Nested schemas** - Validate complex hierarchies
-- **Sequence constraints** - Element types and length limits
-
-## Basic Schema Creation
-
-### Mapping Schema
-
-```c
+** Basic Schema Creation
+*** Mapping Schema
+#+begin_src C
 #include <yaml-glib/yaml-glib.h>
 
 YamlSchema *
@@ -39,11 +35,10 @@ create_person_schema(void)
 
     return schema;
 }
-```
+#+end_src
 
-### Sequence Schema
-
-```c
+*** Sequence Schema
+#+begin_src C
 YamlSchema *
 create_tags_schema(void)
 {
@@ -58,11 +53,10 @@ create_tags_schema(void)
 
     return schema;
 }
-```
+#+end_src
 
-### Scalar Schema
-
-```c
+*** Scalar Schema
+#+begin_src C
 YamlSchema *
 create_email_schema(void)
 {
@@ -73,13 +67,11 @@ create_email_schema(void)
 
     return schema;
 }
-```
+#+end_src
 
-## Validating Data
-
-### Basic Validation
-
-```c
+** Validating Data
+*** Basic Validation
+#+begin_src C
 gboolean
 validate_config(YamlNode *root)
 {
@@ -95,13 +87,12 @@ validate_config(YamlNode *root)
     g_print("Configuration is valid!\n");
     return TRUE;
 }
-```
+#+end_src
 
-### Validation with Path Tracking
-
+*** Validation with Path Tracking
 For better error messages with nested structures:
 
-```c
+#+begin_src C
 gboolean
 validate_with_path(YamlNode *root)
 {
@@ -117,13 +108,11 @@ validate_with_path(YamlNode *root)
 
     return TRUE;
 }
-```
+#+end_src
 
-## Nested Schemas
-
-### Property with Nested Schema
-
-```c
+** Nested Schemas
+*** Property with Nested Schema
+#+begin_src C
 YamlSchema *
 create_config_schema(void)
 {
@@ -154,11 +143,10 @@ create_config_schema(void)
 
     return schema;
 }
-```
+#+end_src
 
-### Sequence with Element Schema
-
-```c
+*** Sequence with Element Schema
+#+begin_src C
 YamlSchema *
 create_users_list_schema(void)
 {
@@ -177,13 +165,11 @@ create_users_list_schema(void)
 
     return schema;
 }
-```
+#+end_src
 
-## Value Constraints
-
-### Enum Values
-
-```c
+** Value Constraints
+*** Enum Values
+#+begin_src C
 YamlSchema *
 create_status_schema(void)
 {
@@ -197,11 +183,10 @@ create_status_schema(void)
 
     return schema;
 }
-```
+#+end_src
 
-### Numeric Ranges
-
-```c
+*** Numeric Ranges
+#+begin_src C
 YamlSchema *
 create_port_schema(void)
 {
@@ -223,11 +208,10 @@ create_age_schema(void)
 
     return schema;
 }
-```
+#+end_src
 
-### String Length
-
-```c
+*** String Length
+#+begin_src C
 YamlSchema *
 create_username_schema(void)
 {
@@ -241,11 +225,10 @@ create_username_schema(void)
 
     return schema;
 }
-```
+#+end_src
 
-### Regex Patterns
-
-```c
+*** Regex Patterns
+#+begin_src C
 YamlSchema *
 create_semantic_version_schema(void)
 {
@@ -260,13 +243,12 @@ create_semantic_version_schema(void)
 
     return schema;
 }
-```
+#+end_src
 
-## Additional Properties
-
+** Additional Properties
 Control whether unmapped properties are allowed:
 
-```c
+#+begin_src C
 YamlSchema *
 create_strict_schema(void)
 {
@@ -280,13 +262,11 @@ create_strict_schema(void)
 
     return schema;
 }
-```
+#+end_src
 
-## Error Handling
-
-### Error Codes
-
-```c
+** Error Handling
+*** Error Codes
+#+begin_src C
 void
 handle_validation_error(GError *error)
 {
@@ -330,13 +310,11 @@ handle_validation_error(GError *error)
         g_printerr("Validation error: %s\n", error->message);
     }
 }
-```
+#+end_src
 
-## Practical Examples
-
-### Configuration File Validation
-
-```c
+** Practical Examples
+*** Configuration File Validation
+#+begin_src C
 YamlSchema *
 create_app_config_schema(void)
 {
@@ -419,11 +397,10 @@ validate_config_file(const gchar *filename)
 
     return TRUE;
 }
-```
+#+end_src
 
-### API Request Validation
-
-```c
+*** API Request Validation
+#+begin_src C
 YamlSchema *
 create_user_request_schema(void)
 {
@@ -462,11 +439,10 @@ create_user_request_schema(void)
 
     return schema;
 }
-```
+#+end_src
 
-## Complete Example
-
-```c
+** Complete Example
+#+begin_src C
 #include <yaml-glib/yaml-glib.h>
 
 static YamlSchema *
@@ -538,10 +514,11 @@ main(int argc, char *argv[])
     g_print("Configuration is valid!\n");
     return 0;
 }
-```
+#+end_src
 
-**Valid config.yaml:**
-```yaml
+*Valid config.yaml:*
+
+#+begin_src yaml
 name: my-server
 listeners:
   - port: 8080
@@ -551,10 +528,9 @@ listeners:
       enabled: true
       cert_file: /etc/ssl/cert.pem
       key_file: /etc/ssl/key.pem
-```
+#+end_src
 
-## See Also
-
-- [YamlSchema API](../api/schema.md) - Complete API reference
-- [Error Handling](../error-handling.md) - Error handling patterns
-- [Parsing Guide](parsing.md) - Loading YAML to validate
+** See Also
+- [[../api/schema.org][YamlSchema API]] - Complete API reference
+- [[../error-handling.org][Error Handling]] - Error handling patterns
+- [[file:parsing.org][Parsing Guide]] - Loading YAML to validate

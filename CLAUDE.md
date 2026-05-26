@@ -30,8 +30,8 @@ yaml-glib/
 │   │   └── obj/            # Object files and .d dependency files
 │   └── release/            # Release build (-O2)
 │       └── obj/
-├── docs/                   # Documentation (markdown)
-├── README.md               # Project overview
+├── docs/                   # Documentation (org-mode)
+├── README.org              # Project overview
 └── CLAUDE.md               # This file
 ```
 

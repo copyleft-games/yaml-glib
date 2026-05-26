@@ -1,159 +1,147 @@
-# YamlGenerator API Reference
+* YamlGenerator API Reference
+=YamlGenerator= generates YAML output from nodes and documents.
 
-`YamlGenerator` generates YAML output from nodes and documents.
-
-## Overview
-
-```c
+** Overview
+#+begin_src C
 #include <yaml-glib/yaml-glib.h>
 
 #define YAML_TYPE_GENERATOR (yaml_generator_get_type())
 
 G_DECLARE_DERIVABLE_TYPE(YamlGenerator, yaml_generator, YAML, GENERATOR, GObject)
-```
+#+end_src
 
-`YamlGenerator` wraps libyaml's emitter to produce YAML output from `YamlNode` or `YamlDocument` objects.
+=YamlGenerator= wraps libyaml's emitter to produce YAML output from =YamlNode= or =YamlDocument= objects.
 
-## Construction
-
-### yaml_generator_new
-
-```c
+** Construction
+*** yaml_generator_new
+#+begin_src C
 YamlGenerator *yaml_generator_new(void);
-```
+#+end_src
 
-Creates a new `YamlGenerator`.
+Creates a new =YamlGenerator=.
 
-**Returns:** `(transfer full)` A new `YamlGenerator`.
+*Returns:* =(transfer full)= A new =YamlGenerator=.
 
-**Example:**
-```c
+*Example:*
+
+#+begin_src C
 g_autoptr(YamlGenerator) gen = yaml_generator_new();
 yaml_generator_set_root(gen, node);
 yaml_generator_set_indent(gen, 2);
-```
+#+end_src
 
----
+--------------
 
-## Configuration
-
-### yaml_generator_set_root / yaml_generator_get_root
-
-```c
+** Configuration
+*** yaml_generator_set_root / yaml_generator_get_root
+#+begin_src C
 void yaml_generator_set_root(YamlGenerator *generator, YamlNode *node);
 YamlNode *yaml_generator_get_root(YamlGenerator *generator);
-```
+#+end_src
 
 Set/get the root node to generate YAML from.
 
----
+--------------
 
-### yaml_generator_set_document / yaml_generator_get_document
-
-```c
+*** yaml_generator_set_document / yaml_generator_get_document
+#+begin_src C
 void yaml_generator_set_document(YamlGenerator *generator, YamlDocument *document);
 YamlDocument *yaml_generator_get_document(YamlGenerator *generator);
-```
+#+end_src
 
 Set/get a document to generate YAML from. Includes document directives (version, tags).
 
----
+--------------
 
-### yaml_generator_set_indent / yaml_generator_get_indent
-
-```c
+*** yaml_generator_set_indent / yaml_generator_get_indent
+#+begin_src C
 void yaml_generator_set_indent(YamlGenerator *generator, guint indent_spaces);
 guint yaml_generator_get_indent(YamlGenerator *generator);
-```
+#+end_src
 
 Set/get the number of spaces for indentation (1-10). Default is 2.
 
----
+--------------
 
-### yaml_generator_set_canonical / yaml_generator_get_canonical
-
-```c
+*** yaml_generator_set_canonical / yaml_generator_get_canonical
+#+begin_src C
 void yaml_generator_set_canonical(YamlGenerator *generator, gboolean canonical);
 gboolean yaml_generator_get_canonical(YamlGenerator *generator);
-```
+#+end_src
 
 Set/get whether to output canonical YAML (explicit typing and flow style).
 
----
+--------------
 
-### yaml_generator_set_unicode / yaml_generator_get_unicode
-
-```c
+*** yaml_generator_set_unicode / yaml_generator_get_unicode
+#+begin_src C
 void yaml_generator_set_unicode(YamlGenerator *generator, gboolean unicode);
 gboolean yaml_generator_get_unicode(YamlGenerator *generator);
-```
+#+end_src
 
 Set/get whether to allow unicode characters. If disabled, non-ASCII characters are escaped.
 
----
+--------------
 
-### yaml_generator_set_line_break / yaml_generator_get_line_break
-
-```c
+*** yaml_generator_set_line_break / yaml_generator_get_line_break
+#+begin_src C
 void yaml_generator_set_line_break(YamlGenerator *generator, const gchar *line_break);
 const gchar *yaml_generator_get_line_break(YamlGenerator *generator);
-```
+#+end_src
 
 Set/get the line break style:
-- `"unix"`: LF (`\n`)
-- `"dos"`: CRLF (`\r\n`)
-- `"mac"`: CR (`\r`)
 
----
+- ="unix"=: LF (=\n=)
+- ="dos"=: CRLF (=\r\n=)
+- ="mac"=: CR (=\r=)
 
-### yaml_generator_set_explicit_start / yaml_generator_get_explicit_start
+--------------
 
-```c
+*** yaml_generator_set_explicit_start / yaml_generator_get_explicit_start
+#+begin_src C
 void yaml_generator_set_explicit_start(YamlGenerator *generator, gboolean explicit_start);
 gboolean yaml_generator_get_explicit_start(YamlGenerator *generator);
-```
+#+end_src
 
-Set/get whether to emit the document start marker (`---`).
+Set/get whether to emit the document start marker (=---=).
 
----
+--------------
 
-### yaml_generator_set_explicit_end / yaml_generator_get_explicit_end
-
-```c
+*** yaml_generator_set_explicit_end / yaml_generator_get_explicit_end
+#+begin_src C
 void yaml_generator_set_explicit_end(YamlGenerator *generator, gboolean explicit_end);
 gboolean yaml_generator_get_explicit_end(YamlGenerator *generator);
-```
+#+end_src
 
-Set/get whether to emit the document end marker (`...`).
+Set/get whether to emit the document end marker (=...=).
 
----
+--------------
 
-## Synchronous Output
-
-### yaml_generator_to_data
-
-```c
+** Synchronous Output
+*** yaml_generator_to_data
+#+begin_src C
 gchar *yaml_generator_to_data(
     YamlGenerator  *generator,
     gsize          *length,
     GError        **error
 );
-```
+#+end_src
 
 Generates YAML as a string.
 
-**Parameters:**
+*Parameters:*
 
-| Name | Type | Description |
-|------|------|-------------|
-| generator | `YamlGenerator *` | A generator |
-| length | `gsize *` `(out) (optional)` | Location for output length |
-| error | `GError **` `(nullable)` | Return location for error |
+| Name      | Type                         | Description                |
+|-----------+------------------------------+----------------------------|
+| generator | =YamlGenerator *=            | A generator                |
+| length    | =gsize *= =(out) (optional)= | Location for output length |
+| error     | =GError **= =(nullable)=     | Return location for error  |
 
-**Returns:** `(transfer full) (nullable)` The generated YAML string. Free with `g_free()`.
+*Returns:* =(transfer full) (nullable)= The generated YAML string. Free with =g_free()=.
 
-**Example:**
-```c
+*Example:*
+
+#+begin_src C
 g_autoptr(YamlGenerator) gen = yaml_generator_new();
 g_autoptr(GError) error = NULL;
 g_autofree gchar *output = NULL;
@@ -165,69 +153,64 @@ if (output != NULL)
 {
     g_print("%s", output);
 }
-```
+#+end_src
 
----
+--------------
 
-### yaml_generator_to_file
-
-```c
+*** yaml_generator_to_file
+#+begin_src C
 gboolean yaml_generator_to_file(
     YamlGenerator  *generator,
     const gchar    *filename,
     GError        **error
 );
-```
+#+end_src
 
 Generates YAML and writes it to a file.
 
-**Parameters:**
+*Parameters:*
 
-| Name | Type | Description |
-|------|------|-------------|
-| generator | `YamlGenerator *` | A generator |
-| filename | `const gchar *` | The output file path |
-| error | `GError **` `(nullable)` | Return location for error |
+| Name      | Type                     | Description               |
+|-----------+--------------------------+---------------------------|
+| generator | =YamlGenerator *=        | A generator               |
+| filename  | =const gchar *=          | The output file path      |
+| error     | =GError **= =(nullable)= | Return location for error |
 
-**Returns:** `TRUE` on success.
+*Returns:* =TRUE= on success.
 
----
+--------------
 
-### yaml_generator_to_gfile
-
-```c
+*** yaml_generator_to_gfile
+#+begin_src C
 gboolean yaml_generator_to_gfile(
     YamlGenerator  *generator,
     GFile          *file,
     GCancellable   *cancellable,
     GError        **error
 );
-```
+#+end_src
 
-Generates YAML and writes it to a `GFile`.
+Generates YAML and writes it to a =GFile=.
 
----
+--------------
 
-### yaml_generator_to_stream
-
-```c
+*** yaml_generator_to_stream
+#+begin_src C
 gboolean yaml_generator_to_stream(
     YamlGenerator  *generator,
     GOutputStream  *stream,
     GCancellable   *cancellable,
     GError        **error
 );
-```
+#+end_src
 
 Generates YAML and writes it to an output stream.
 
----
+--------------
 
-## Asynchronous Output
-
-### yaml_generator_to_stream_async
-
-```c
+** Asynchronous Output
+*** yaml_generator_to_stream_async
+#+begin_src C
 void yaml_generator_to_stream_async(
     YamlGenerator       *generator,
     GOutputStream       *stream,
@@ -235,29 +218,27 @@ void yaml_generator_to_stream_async(
     GAsyncReadyCallback  callback,
     gpointer             user_data
 );
-```
+#+end_src
 
 Asynchronously generates YAML and writes it to an output stream.
 
----
+--------------
 
-### yaml_generator_to_stream_finish
-
-```c
+*** yaml_generator_to_stream_finish
+#+begin_src C
 gboolean yaml_generator_to_stream_finish(
     YamlGenerator  *generator,
     GAsyncResult   *result,
     GError        **error
 );
-```
+#+end_src
 
 Finishes an async stream generation.
 
----
+--------------
 
-### yaml_generator_to_gfile_async
-
-```c
+*** yaml_generator_to_gfile_async
+#+begin_src C
 void yaml_generator_to_gfile_async(
     YamlGenerator       *generator,
     GFile               *file,
@@ -265,29 +246,27 @@ void yaml_generator_to_gfile_async(
     GAsyncReadyCallback  callback,
     gpointer             user_data
 );
-```
+#+end_src
 
 Asynchronously generates YAML and writes it to a GFile.
 
----
+--------------
 
-### yaml_generator_to_gfile_finish
-
-```c
+*** yaml_generator_to_gfile_finish
+#+begin_src C
 gboolean yaml_generator_to_gfile_finish(
     YamlGenerator  *generator,
     GAsyncResult   *result,
     GError        **error
 );
-```
+#+end_src
 
 Finishes an async file generation.
 
----
+--------------
 
-## Complete Example
-
-```c
+** Complete Example
+#+begin_src C
 #include <yaml-glib/yaml-glib.h>
 
 gboolean
@@ -311,11 +290,10 @@ save_config(YamlNode *config, const gchar *filename)
 
     return TRUE;
 }
-```
+#+end_src
 
-## Output Comparison
-
-```c
+** Output Comparison
+#+begin_src C
 /* Default output */
 yaml_generator_set_indent(gen, 2);
 /*
@@ -349,10 +327,9 @@ yaml_generator_set_canonical(gen, TRUE);
 }
 ...
 */
-```
+#+end_src
 
-## See Also
-
-- [YamlParser](parser.md) - Parse YAML input
-- [YamlBuilder](builder.md) - Build YAML structures
-- [YamlDocument](document.md) - Document with directives
+** See Also
+- [[file:parser.org][YamlParser]] - Parse YAML input
+- [[file:builder.org][YamlBuilder]] - Build YAML structures
+- [[file:document.org][YamlDocument]] - Document with directives

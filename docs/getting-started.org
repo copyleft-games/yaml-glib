@@ -1,9 +1,7 @@
-# Getting Started with yaml-glib
-
+* Getting Started with yaml-glib
 This guide walks you through installing yaml-glib, understanding the basic concepts, and writing your first program.
 
-## Prerequisites
-
+** Prerequisites
 Before using yaml-glib, ensure you have the following installed:
 
 - GCC compiler
@@ -14,94 +12,88 @@ Before using yaml-glib, ensure you have the following installed:
 - JSON-GLib 1.0 development files
 
 On Fedora:
-```bash
+
+#+begin_src sh
 sudo dnf install gcc glib2-devel libyaml-devel json-glib-devel
-```
+#+end_src
 
 On Debian/Ubuntu:
-```bash
+
+#+begin_src sh
 sudo apt install gcc libglib2.0-dev libyaml-dev libjson-glib-dev
-```
+#+end_src
 
-## Installation
-
-### Building from Source
-
-```bash
+** Installation
+*** Building from Source
+#+begin_src sh
 git clone https://gitlab.com/copyleft-games/yaml-glib.git
 cd yaml-glib
 make
 sudo make install
-```
+#+end_src
 
 This installs:
-- Headers to `/usr/local/include/yaml-glib/`
-- Shared library (`libyaml-glib-1.0.so.1.0.0`) to `/usr/local/lib64/`
-- Static library (`libyaml-glib-1.0.a`) to `/usr/local/lib64/`
-- pkg-config file (`yaml-glib-1.0.pc`) to `/usr/local/lib64/pkgconfig/`
 
-### Verifying Installation
+- Headers to =/usr/local/include/yaml-glib/=
+- Shared library (=libyaml-glib-1.0.so.1.0.0=) to =/usr/local/lib64/=
+- Static library (=libyaml-glib-1.0.a=) to =/usr/local/lib64/=
+- pkg-config file (=yaml-glib-1.0.pc=) to =/usr/local/lib64/pkgconfig/=
 
-```bash
+*** Verifying Installation
+#+begin_src sh
 pkg-config --cflags --libs yaml-glib-1.0
-```
+#+end_src
 
-## Core Concepts
-
-### Types Overview
-
+** Core Concepts
+*** Types Overview
 yaml-glib provides several key types:
 
-| Type | Kind | Purpose |
-|------|------|---------|
-| `YamlNode` | Boxed (ref-counted) | Generic container for any YAML value |
-| `YamlMapping` | Boxed (ref-counted) | Key-value pairs (like JSON object or Python dict) |
-| `YamlSequence` | Boxed (ref-counted) | Ordered array (like JSON array or Python list) |
-| `YamlDocument` | GObject | Document with root node and directives |
-| `YamlParser` | GObject | Parses YAML from various sources |
-| `YamlBuilder` | GObject | Fluent API for constructing YAML |
-| `YamlGenerator` | GObject | Generates YAML output |
+| Type            | Kind                | Purpose                                           |
+|-----------------+---------------------+---------------------------------------------------|
+| =YamlNode=      | Boxed (ref-counted) | Generic container for any YAML value              |
+| =YamlMapping=   | Boxed (ref-counted) | Key-value pairs (like JSON object or Python dict) |
+| =YamlSequence=  | Boxed (ref-counted) | Ordered array (like JSON array or Python list)    |
+| =YamlDocument=  | GObject             | Document with root node and directives            |
+| =YamlParser=    | GObject             | Parses YAML from various sources                  |
+| =YamlBuilder=   | GObject             | Fluent API for constructing YAML                  |
+| =YamlGenerator= | GObject             | Generates YAML output                             |
 
-### Node Types
+*** Node Types
+Every YAML value is wrapped in a =YamlNode=. The node type is determined by =YamlNodeType=:
 
-Every YAML value is wrapped in a `YamlNode`. The node type is determined by `YamlNodeType`:
+- =YAML_NODE_MAPPING= - Contains a =YamlMapping=
+- =YAML_NODE_SEQUENCE= - Contains a =YamlSequence=
+- =YAML_NODE_SCALAR= - Contains a scalar value (string, int, double, boolean)
+- =YAML_NODE_NULL= - Represents null/nil
 
-- `YAML_NODE_MAPPING` - Contains a `YamlMapping`
-- `YAML_NODE_SEQUENCE` - Contains a `YamlSequence`
-- `YAML_NODE_SCALAR` - Contains a scalar value (string, int, double, boolean)
-- `YAML_NODE_NULL` - Represents null/nil
-
-### Memory Management
-
+*** Memory Management
 yaml-glib uses reference counting for memory management:
 
-- **GObjects** (YamlParser, YamlBuilder, YamlGenerator, YamlDocument): Use `g_object_unref()` to release
-- **Boxed types** (YamlNode, YamlMapping, YamlSequence): Use type-specific `*_unref()` functions
+- *GObjects* (YamlParser, YamlBuilder, YamlGenerator, YamlDocument): Use =g_object_unref()= to release
+- *Boxed types* (YamlNode, YamlMapping, YamlSequence): Use type-specific =*_unref()= functions
 
-**Ownership conventions:**
-- `get_*` functions return borrowed references (don't free)
-- `dup_*` functions return new references (you must free)
-- `steal_*` functions transfer ownership (you own the result)
-- `set_*` functions take a reference (caller keeps their reference)
-- `take_*` functions steal the reference (caller loses their reference)
+*Ownership conventions:*
 
-### Automatic Cleanup
+- =get_*= functions return borrowed references (don't free)
+- =dup_*= functions return new references (you must free)
+- =steal_*= functions transfer ownership (you own the result)
+- =set_*= functions take a reference (caller keeps their reference)
+- =take_*= functions steal the reference (caller loses their reference)
 
-Use `g_autoptr()` for automatic cleanup:
+*** Automatic Cleanup
+Use =g_autoptr()= for automatic cleanup:
 
-```c
+#+begin_src C
 g_autoptr(YamlParser) parser = yaml_parser_new();
 g_autoptr(YamlNode) node = yaml_node_new_mapping(NULL);
 g_autoptr(YamlMapping) mapping = yaml_mapping_new();
-```
+#+end_src
 
-## Complete Example Program
-
+** Complete Example Program
 Here's a complete program that demonstrates parsing, modifying, and generating YAML.
 
-### example.c
-
-```c
+*** example.c
+#+begin_src C
 /* example.c
  *
  * Complete yaml-glib example demonstrating:
@@ -468,13 +460,12 @@ main(
 
     return success ? EXIT_SUCCESS : EXIT_FAILURE;
 }
-```
+#+end_src
 
-### sample.yaml
-
+*** sample.yaml
 Create this file in the same directory as your compiled program:
 
-```yaml
+#+begin_src yaml
 name: John Doe
 age: 30
 active: true
@@ -489,11 +480,10 @@ hobbies:
 notes: |
   This is a multi-line
   note about the person.
-```
+#+end_src
 
-### Makefile
-
-```makefile
+*** Makefile
+#+begin_src makefile
 # Makefile for yaml-glib example
 #
 # Usage:
@@ -503,7 +493,7 @@ notes: |
 
 CC = gcc
 CFLAGS = -std=gnu89 -Wall -Wextra -g \
-	`pkg-config --cflags yaml-glib-1.0`
+    `pkg-config --cflags yaml-glib-1.0`
 
 # Link against yaml-glib (pkg-config pulls in all dependencies)
 LDFLAGS = `pkg-config --libs yaml-glib-1.0`
@@ -517,31 +507,29 @@ TARGET = example
 all: $(TARGET)
 
 $(TARGET): example.c
-	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
+    $(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
 
 run: $(TARGET)
-	LD_LIBRARY_PATH=/usr/local/lib64:$$LD_LIBRARY_PATH ./$(TARGET)
+    LD_LIBRARY_PATH=/usr/local/lib64:$$LD_LIBRARY_PATH ./$(TARGET)
 
 clean:
-	rm -f $(TARGET)
+    rm -f $(TARGET)
 
 .PHONY: all run clean
-```
+#+end_src
 
-### Building and Running
-
-```bash
+*** Building and Running
+#+begin_src sh
 # Build the example
 make
 
 # Create sample.yaml (shown above)
 # Then run the example
 make run
-```
+#+end_src
 
-### Expected Output
-
-```
+*** Expected Output
+#+begin_example
 === Parsing Demo ===
 
 Name: John Doe
@@ -604,13 +592,11 @@ in_stock: true
 tags:
   - electronics
   - sale
-```
+#+end_example
 
-## Quick Reference
-
-### Parsing YAML
-
-```c
+** Quick Reference
+*** Parsing YAML
+#+begin_src C
 /* From string */
 YamlParser *parser = yaml_parser_new();
 yaml_parser_load_from_data(parser, "key: value\n", -1, &error);
@@ -622,11 +608,10 @@ yaml_parser_load_from_file(parser, "config.yaml", &error);
 /* From GFile (for GIO integration) */
 GFile *file = g_file_new_for_path("config.yaml");
 yaml_parser_load_from_gfile(parser, file, NULL, &error);
-```
+#+end_src
 
-### Reading Values
-
-```c
+*** Reading Values
+#+begin_src C
 /* Get mapping from node */
 YamlMapping *mapping = yaml_node_get_mapping(node);
 
@@ -650,11 +635,10 @@ for (guint i = 0; i < len; i++) {
     YamlNode *item = yaml_sequence_get_element(sequence, i);
     /* process item */
 }
-```
+#+end_src
 
-### Building YAML
-
-```c
+*** Building YAML
+#+begin_src C
 /* Using YamlBuilder (recommended for complex structures) */
 YamlBuilder *builder = yaml_builder_new();
 yaml_builder_begin_mapping(builder);
@@ -667,11 +651,10 @@ YamlNode *root = yaml_builder_get_root(builder);
 YamlMapping *mapping = yaml_mapping_new();
 yaml_mapping_set_string_member(mapping, "key", "value");
 YamlNode *root = yaml_node_new_mapping(mapping);
-```
+#+end_src
 
-### Generating Output
-
-```c
+*** Generating Output
+#+begin_src C
 YamlGenerator *gen = yaml_generator_new();
 yaml_generator_set_root(gen, root);
 yaml_generator_set_indent(gen, 2);
@@ -681,11 +664,10 @@ gchar *yaml = yaml_generator_to_data(gen, NULL, &error);
 
 /* To file */
 yaml_generator_to_file(gen, "output.yaml", &error);
-```
+#+end_src
 
-## Next Steps
-
-- [Memory Management](memory-management.md) - Detailed guide on reference counting
-- [Error Handling](error-handling.md) - Error domains and GError usage
-- [Parsing Guide](guides/parsing.md) - Complete parsing documentation
-- [API Reference](api/node.md) - Full API documentation
+** Next Steps
+- [[file:memory-management.org][Memory Management]] - Detailed guide on reference counting
+- [[file:error-handling.org][Error Handling]] - Error domains and GError usage
+- [[file:guides/parsing.org][Parsing Guide]] - Complete parsing documentation
+- [[file:api/node.org][API Reference]] - Full API documentation

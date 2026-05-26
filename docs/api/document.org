@@ -1,0 +1,336 @@
+* YamlDocument API Reference
+=YamlDocument= represents a single YAML document with its root node and directives.
+
+** Overview
+#+begin_src C
+#include <yaml-glib/yaml-glib.h>
+
+#define YAML_TYPE_DOCUMENT (yaml_document_get_type())
+
+G_DECLARE_DERIVABLE_TYPE(YamlDocument, yaml_document, YAML, DOCUMENT, GObject)
+#+end_src
+
+=YamlDocument= is a GObject that wraps a root node and optional YAML directives (version, tags). Use =g_object_unref()= to free.
+
+** Type Definition
+#+begin_src C
+typedef struct _YamlDocument YamlDocument;
+
+struct _YamlDocumentClass
+{
+    GObjectClass parent_class;
+    gpointer _reserved[8];
+};
+#+end_src
+
+** Construction
+*** yaml_document_new
+#+begin_src C
+YamlDocument *yaml_document_new(void);
+#+end_src
+
+Creates a new empty =YamlDocument=.
+
+*Returns:* =(transfer full)= A new =YamlDocument=.
+
+*Example:*
+
+#+begin_src C
+g_autoptr(YamlDocument) doc = yaml_document_new();
+g_autoptr(YamlNode) root = yaml_node_new_mapping(NULL);
+yaml_document_set_root(doc, root);
+#+end_src
+
+--------------
+
+*** yaml_document_new_with_root
+#+begin_src C
+YamlDocument *yaml_document_new_with_root(YamlNode *root);
+#+end_src
+
+Creates a new =YamlDocument= with the specified root node.
+
+*Parameters:*
+
+| Name | Type         | Description   |
+|------+--------------+---------------|
+| root | =YamlNode *= | The root node |
+
+*Returns:* =(transfer full)= A new =YamlDocument=.
+
+*Example:*
+
+#+begin_src C
+g_autoptr(YamlNode) root = yaml_node_new_string("Hello");
+g_autoptr(YamlDocument) doc = yaml_document_new_with_root(root);
+#+end_src
+
+--------------
+
+** Root Node Access
+*** yaml_document_set_root
+#+begin_src C
+void yaml_document_set_root(YamlDocument *document, YamlNode *root);
+#+end_src
+
+Sets the root node.
+
+*Parameters:*
+
+| Name     | Type                      | Description              |
+|----------+---------------------------+--------------------------|
+| document | =YamlDocument *=          | A document               |
+| root     | =YamlNode *= =(nullable)= | The root node, or =NULL= |
+
+--------------
+
+*** yaml_document_get_root
+#+begin_src C
+YamlNode *yaml_document_get_root(YamlDocument *document);
+#+end_src
+
+Gets the root node.
+
+*Parameters:*
+
+| Name     | Type             | Description |
+|----------+------------------+-------------|
+| document | =YamlDocument *= | A document  |
+
+*Returns:* =(transfer none) (nullable)= The root node, or =NULL=.
+
+--------------
+
+*** yaml_document_dup_root
+#+begin_src C
+YamlNode *yaml_document_dup_root(YamlDocument *document);
+#+end_src
+
+Gets a new reference to the root node.
+
+*Parameters:*
+
+| Name     | Type             | Description |
+|----------+------------------+-------------|
+| document | =YamlDocument *= | A document  |
+
+*Returns:* =(transfer full) (nullable)= A new reference to the root, or =NULL=. Free with =yaml_node_unref()=.
+
+--------------
+
+*** yaml_document_steal_root
+#+begin_src C
+YamlNode *yaml_document_steal_root(YamlDocument *document);
+#+end_src
+
+Steals the root node, leaving the document empty.
+
+*Parameters:*
+
+| Name     | Type             | Description |
+|----------+------------------+-------------|
+| document | =YamlDocument *= | A document  |
+
+*Returns:* =(transfer full) (nullable)= The root node, or =NULL=.
+
+--------------
+
+** Immutability
+*** yaml_document_seal
+#+begin_src C
+void yaml_document_seal(YamlDocument *document);
+#+end_src
+
+Makes the document and its root node immutable.
+
+*Parameters:*
+
+| Name     | Type             | Description |
+|----------+------------------+-------------|
+| document | =YamlDocument *= | A document  |
+
+--------------
+
+*** yaml_document_is_immutable
+#+begin_src C
+gboolean yaml_document_is_immutable(YamlDocument *document);
+#+end_src
+
+Checks whether the document is immutable.
+
+*Parameters:*
+
+| Name     | Type             | Description |
+|----------+------------------+-------------|
+| document | =YamlDocument *= | A document  |
+
+*Returns:* =TRUE= if the document is immutable.
+
+--------------
+
+** Version Directives
+*** yaml_document_set_version
+#+begin_src C
+void yaml_document_set_version(YamlDocument *document, guint major, guint minor);
+#+end_src
+
+Sets the YAML version directive. Common values are (1, 1) for YAML 1.1 and (1, 2) for YAML 1.2.
+
+*Parameters:*
+
+| Name     | Type             | Description       |
+|----------+------------------+-------------------|
+| document | =YamlDocument *= | A document        |
+| major    | =guint=          | The major version |
+| minor    | =guint=          | The minor version |
+
+*Example:*
+
+#+begin_src C
+yaml_document_set_version(doc, 1, 2);  /* YAML 1.2 */
+#+end_src
+
+--------------
+
+*** yaml_document_get_version
+#+begin_src C
+void yaml_document_get_version(YamlDocument *document, guint *major, guint *minor);
+#+end_src
+
+Gets the YAML version directive.
+
+*Parameters:*
+
+| Name     | Type                         | Description                |
+|----------+------------------------------+----------------------------|
+| document | =YamlDocument *=             | A document                 |
+| major    | =guint *= =(out) (optional)= | Location for major version |
+| minor    | =guint *= =(out) (optional)= | Location for minor version |
+
+--------------
+
+** Tag Directives
+*** yaml_document_add_tag_directive
+#+begin_src C
+void yaml_document_add_tag_directive(
+    YamlDocument *document,
+    const gchar  *handle,
+    const gchar  *prefix
+);
+#+end_src
+
+Adds a tag directive.
+
+*Parameters:*
+
+| Name     | Type             | Description                                    |
+|----------+------------------+------------------------------------------------|
+| document | =YamlDocument *= | A document                                     |
+| handle   | =const gchar *=  | The tag handle (e.g., "!e!")                   |
+| prefix   | =const gchar *=  | The tag prefix (e.g., "tag:example.com,2024:") |
+
+*Example:*
+
+#+begin_src C
+yaml_document_add_tag_directive(doc, "!app!", "tag:myapp.example.com,2024:");
+/* Now you can use !app!type instead of !<tag:myapp.example.com,2024:type> */
+#+end_src
+
+--------------
+
+*** yaml_document_get_tag_directives
+#+begin_src C
+GHashTable *yaml_document_get_tag_directives(YamlDocument *document);
+#+end_src
+
+Gets all tag directives.
+
+*Parameters:*
+
+| Name     | Type             | Description |
+|----------+------------------+-------------|
+| document | =YamlDocument *= | A document  |
+
+*Returns:* =(transfer none) (element-type utf8 utf8)= A hash table mapping handles to prefixes. Do not modify.
+
+--------------
+
+** JSON Interoperability
+*** yaml_document_from_json_node
+#+begin_src C
+YamlDocument *yaml_document_from_json_node(JsonNode *json_node);
+#+end_src
+
+Creates a =YamlDocument= from a =JsonNode=.
+
+*Parameters:*
+
+| Name      | Type         | Description      |
+|-----------+--------------+------------------|
+| json_node | =JsonNode *= | A JSON-GLib node |
+
+*Returns:* =(transfer full)= A new =YamlDocument=.
+
+--------------
+
+*** yaml_document_to_json_node
+#+begin_src C
+JsonNode *yaml_document_to_json_node(YamlDocument *document);
+#+end_src
+
+Converts the document to a =JsonNode=.
+
+*Parameters:*
+
+| Name     | Type             | Description |
+|----------+------------------+-------------|
+| document | =YamlDocument *= | A document  |
+
+*Returns:* =(transfer full) (nullable)= A new =JsonNode=, or =NULL=.
+
+--------------
+
+** Complete Example
+#+begin_src C
+#include <yaml-glib/yaml-glib.h>
+
+int main(void)
+{
+    g_autoptr(YamlDocument) doc = NULL;
+    g_autoptr(YamlMapping) mapping = NULL;
+    g_autoptr(YamlNode) root = NULL;
+    g_autoptr(YamlGenerator) gen = NULL;
+    g_autoptr(GError) error = NULL;
+    g_autofree gchar *output = NULL;
+
+    /* Create document with version directive */
+    doc = yaml_document_new();
+    yaml_document_set_version(doc, 1, 2);
+    yaml_document_add_tag_directive(doc, "!app!", "tag:myapp.com,2024:");
+
+    /* Create root node */
+    mapping = yaml_mapping_new();
+    yaml_mapping_set_string_member(mapping, "name", "My Application");
+    yaml_mapping_set_string_member(mapping, "version", "1.0.0");
+
+    root = yaml_node_new_mapping(mapping);
+    yaml_document_set_root(doc, root);
+
+    /* Generate YAML */
+    gen = yaml_generator_new();
+    yaml_generator_set_document(gen, doc);
+
+    output = yaml_generator_to_data(gen, NULL, &error);
+    if (output != NULL)
+    {
+        g_print("%s", output);
+    }
+
+    return 0;
+}
+#+end_src
+
+** See Also
+- [[file:parser.org][YamlParser]] - Parse documents from files/strings
+- [[file:generator.org][YamlGenerator]] - Generate YAML output
+- [[file:node.org][YamlNode]] - Generic container

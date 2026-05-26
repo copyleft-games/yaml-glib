@@ -1,21 +1,17 @@
-# Building YAML Guide
-
+* Building YAML Guide
 This guide covers programmatically building YAML structures using yaml-glib.
 
-## Overview
-
+** Overview
 yaml-glib provides two approaches for building YAML:
 
-1. **YamlBuilder** - Fluent, stack-based API for building complex structures
-2. **Direct Construction** - Creating nodes directly with constructors
+1. *YamlBuilder* - Fluent, stack-based API for building complex structures
+2. *Direct Construction* - Creating nodes directly with constructors
 
-## Using YamlBuilder
+** Using YamlBuilder
+=YamlBuilder= uses a stack-based approach where you begin structures, add values, and end structures. All =begin_*= calls must be matched with corresponding =end_*= calls.
 
-`YamlBuilder` uses a stack-based approach where you begin structures, add values, and end structures. All `begin_*` calls must be matched with corresponding `end_*` calls.
-
-### Basic Mapping
-
-```c
+*** Basic Mapping
+#+begin_src C
 #include <yaml-glib/yaml-glib.h>
 
 YamlNode *
@@ -41,19 +37,19 @@ build_simple_mapping(void)
 
     return yaml_builder_steal_root(builder);
 }
-```
+#+end_src
 
-**Output:**
-```yaml
+*Output:*
+
+#+begin_src yaml
 name: My Application
 version: 1.0.0
 port: 8080
 debug: false
-```
+#+end_src
 
-### Basic Sequence
-
-```c
+*** Basic Sequence
+#+begin_src C
 YamlNode *
 build_simple_sequence(void)
 {
@@ -69,18 +65,18 @@ build_simple_sequence(void)
 
     return yaml_builder_steal_root(builder);
 }
-```
+#+end_src
 
-**Output:**
-```yaml
+*Output:*
+
+#+begin_src yaml
 - apple
 - banana
 - cherry
-```
+#+end_src
 
-### Nested Structures
-
-```c
+*** Nested Structures
+#+begin_src C
 YamlNode *
 build_nested_config(void)
 {
@@ -120,10 +116,11 @@ build_nested_config(void)
 
     return yaml_builder_steal_root(builder);
 }
-```
+#+end_src
 
-**Output:**
-```yaml
+*Output:*
+
+#+begin_src yaml
 application: my-app
 database:
   host: localhost
@@ -133,11 +130,10 @@ features:
   - logging
   - caching
   - metrics
-```
+#+end_src
 
-### All Scalar Types
-
-```c
+*** All Scalar Types
+#+begin_src C
 YamlNode *
 build_all_types(void)
 {
@@ -176,11 +172,10 @@ build_all_types(void)
 
     return yaml_builder_steal_root(builder);
 }
-```
+#+end_src
 
-### Using Anchors and Aliases
-
-```c
+*** Using Anchors and Aliases
+#+begin_src C
 YamlNode *
 build_with_anchors(void)
 {
@@ -212,20 +207,20 @@ build_with_anchors(void)
 
     return yaml_builder_steal_root(builder);
 }
-```
+#+end_src
 
-**Output:**
-```yaml
+*Output:*
+
+#+begin_src yaml
 defaults: &defaults
   timeout: 30
   retries: 3
 production: *defaults
 staging: *defaults
-```
+#+end_src
 
-### Using Tags
-
-```c
+*** Using Tags
+#+begin_src C
 YamlNode *
 build_with_tags(void)
 {
@@ -252,15 +247,13 @@ build_with_tags(void)
 
     return yaml_builder_steal_root(builder);
 }
-```
+#+end_src
 
-## Direct Construction
-
+** Direct Construction
 For simpler cases, create nodes directly:
 
-### Simple Scalars
-
-```c
+*** Simple Scalars
+#+begin_src C
 void
 create_scalars(void)
 {
@@ -279,11 +272,10 @@ create_scalars(void)
     /* Null */
     g_autoptr(YamlNode) null = yaml_node_new_null();
 }
-```
+#+end_src
 
-### Building Mappings Directly
-
-```c
+*** Building Mappings Directly
+#+begin_src C
 YamlNode *
 build_mapping_direct(void)
 {
@@ -309,11 +301,10 @@ build_mapping_direct(void)
 
     return yaml_node_new_mapping(mapping);
 }
-```
+#+end_src
 
-### Building Sequences Directly
-
-```c
+*** Building Sequences Directly
+#+begin_src C
 YamlNode *
 build_sequence_direct(void)
 {
@@ -333,13 +324,12 @@ build_sequence_direct(void)
 
     return yaml_node_new_sequence(sequence);
 }
-```
+#+end_src
 
-## Building Immutable Structures
-
+** Building Immutable Structures
 For thread-safe sharing:
 
-```c
+#+begin_src C
 YamlNode *
 build_immutable_config(void)
 {
@@ -381,13 +371,12 @@ build_then_seal(void)
 
     return root;
 }
-```
+#+end_src
 
-## Generating Output
-
+** Generating Output
 Convert built structures to YAML text:
 
-```c
+#+begin_src C
 gchar *
 generate_yaml(YamlNode *root)
 {
@@ -422,13 +411,11 @@ write_yaml_file(YamlNode *root, const gchar *filename)
         g_printerr("Error: %s\n", error->message);
     }
 }
-```
+#+end_src
 
-## Building from Data Structures
-
-### From GList
-
-```c
+** Building from Data Structures
+*** From GList
+#+begin_src C
 YamlNode *
 build_from_string_list(GList *strings)
 {
@@ -443,11 +430,10 @@ build_from_string_list(GList *strings)
 
     return yaml_builder_steal_root(builder);
 }
-```
+#+end_src
 
-### From GPtrArray
-
-```c
+*** From GPtrArray
+#+begin_src C
 YamlNode *
 build_from_array(GPtrArray *items)
 {
@@ -461,11 +447,10 @@ build_from_array(GPtrArray *items)
 
     return yaml_node_new_sequence(seq);
 }
-```
+#+end_src
 
-### From GHashTable
-
-```c
+*** From GHashTable
+#+begin_src C
 YamlNode *
 build_from_hash_table(GHashTable *table)
 {
@@ -484,11 +469,10 @@ build_from_hash_table(GHashTable *table)
 
     return yaml_node_new_mapping(mapping);
 }
-```
+#+end_src
 
-## Complete Example
-
-```c
+** Complete Example
+#+begin_src C
 #include <yaml-glib/yaml-glib.h>
 
 typedef struct {
@@ -584,10 +568,11 @@ main(void)
 
     return 0;
 }
-```
+#+end_src
 
-**Output:**
-```yaml
+*Output:*
+
+#+begin_src yaml
 ---
 name: MyApp
 version: 2.0.0
@@ -600,19 +585,17 @@ features:
   - logging
   - metrics
   - caching
-```
+#+end_src
 
-## Best Practices
+** Best Practices
+1. *Use g_autoptr* - Let automatic cleanup handle memory management
+2. *Match begin/end* - Every =begin_*= needs a corresponding =end_*=
+3. *Set member name first* - In mappings, always call =set_member_name= before adding a value
+4. *Steal the root* - Use =steal_root= to take ownership of the built structure
+5. *Reset for reuse* - Call =yaml_builder_reset= to reuse a builder
 
-1. **Use g_autoptr** - Let automatic cleanup handle memory management
-2. **Match begin/end** - Every `begin_*` needs a corresponding `end_*`
-3. **Set member name first** - In mappings, always call `set_member_name` before adding a value
-4. **Steal the root** - Use `steal_root` to take ownership of the built structure
-5. **Reset for reuse** - Call `yaml_builder_reset` to reuse a builder
-
-## See Also
-
-- [YamlBuilder API](../api/builder.md) - Complete API reference
-- [YamlGenerator API](../api/generator.md) - Output generation
-- [YamlMapping API](../api/mapping.md) - Mapping operations
-- [YamlSequence API](../api/sequence.md) - Sequence operations
+** See Also
+- [[../api/builder.org][YamlBuilder API]] - Complete API reference
+- [[../api/generator.org][YamlGenerator API]] - Output generation
+- [[../api/mapping.org][YamlMapping API]] - Mapping operations
+- [[../api/sequence.org][YamlSequence API]] - Sequence operations
