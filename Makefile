@@ -33,6 +33,8 @@ endif
 
 LIB_SRCS := \
 	src/yaml-node.c \
+	src/yaml-comments.c \
+	src/yaml-writer.c \
 	src/yaml-mapping.c \
 	src/yaml-sequence.c \
 	src/yaml-document.c \

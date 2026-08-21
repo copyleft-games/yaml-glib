@@ -1,0 +1,125 @@
+#+title: Preserving Comments
+#+description: Round-tripping a hand-edited YAML file without losing its comments
+
+* Preserving Comments
+
+libyaml discards comments.  They are not tokens, they never reach the
+document API, and there is no option to keep them.  So by default a
+parse/generate round-trip through yaml-glib deletes every comment in the
+file.
+
+That is fine for machine data.  It is not fine for a configuration file
+somebody edits by hand: the first time a program writes the file back, all
+of the user's notes vanish.
+
+Comment support is opt-in on both sides.
+
+** Reading
+
+#+begin_src C
+g_autoptr(YamlParser) parser = yaml_parser_new();
+
+yaml_parser_set_capture_comments(parser, TRUE);
+yaml_parser_load_from_file(parser, "config.yaml", &error);
+#+end_src
+
+Comments are then available on the nodes:
+
+#+begin_src C
+YamlNode *node = yaml_mapping_get_member(mapping, "log_level");
+GPtrArray *leading = yaml_node_get_leading_comments(node);   /* gchar* */
+const gchar *trailing = yaml_node_get_trailing_comment(node);
+#+end_src
+
+The text is stored without its ~#~ and without one following space, so the
+generator owns how comments are rendered and re-emitting cannot accumulate
+markers.
+
+** Writing
+
+#+begin_src C
+g_autoptr(YamlGenerator) generator = yaml_generator_new();
+
+yaml_generator_set_emit_comments(generator, TRUE);
+yaml_generator_set_root(generator, root);
+
+g_autofree gchar *text = yaml_generator_to_data(generator, NULL, &error);
+#+end_src
+
+** Setting comments by hand
+
+Nothing requires the comments to have come from a file:
+
+#+begin_src C
+yaml_node_add_leading_comment(value, "How chatty the log is.");
+yaml_node_set_trailing_comment(value, "default: info");
+yaml_node_set_blank_before(value, TRUE);
+#+end_src
+
+** How comments are attached
+
+libyaml gives no comment information at all, so they are recovered from the
+source text and anchored by line.  Two rules describe the whole behaviour.
+
+*** A comment belongs to what follows it
+
+A block of comment lines attaches to the node that begins on the next line.
+For a mapping member the anchor is the *key's* line, not the value's --
+otherwise a heading above ~daemon:~ would go looking for comments above the
+first key nested inside it.
+
+Attachment happens outermost-first.  Conversion is depth-first, so without
+that a comment above a sequence entry would be claimed by the first scalar
+inside it, and end up buried on a value nobody was commenting about.
+
+*** A blank line separates
+
+A blank line ends a comment run.  That is what distinguishes a file header
+from a comment about the first key:
+
+#+begin_src yaml
+# What this file is.          <- header: blank line below it
+# Second header line.
+
+# How chatty the log is.      <- about log_level: no blank line
+log_level: info
+#+end_src
+
+Without the rule, ~log_level~ swallows all four lines and the file header
+reappears indented under the first key the next time the file is written.
+
+Blank lines between sections are preserved too, via
+=yaml_node_get_blank_before=.  Losing them would collapse a config file that
+people navigate visually into one dense block.
+
+** What is safe
+
+A ~#~ is only treated as a comment when it is not inside a scalar.  Before
+any text is examined, libyaml's own scanner is run over the source to record
+exactly which columns of which lines are covered by tokens.  So both of
+these survive intact:
+
+#+begin_src yaml
+motd: "has a # inside, and it stays"
+
+script: |
+  #!/bin/sh
+  # this is shell, not YAML
+#+end_src
+
+Scalar style is preserved as well.  yaml-glib models every scalar as a
+string, so ~true~ and ~'true'~ look identical by the time a generator sees
+them -- and a generator that guesses will quote both, turning a boolean into
+a string.  The parser records how each scalar was written, and the writer
+honours it.
+
+** Limitations
+
+- Emission uses a block-style writer, because libyaml's emitter has no
+  notion of comments.  Flow style, canonical output and anchors stay on the
+  default path, which means =yaml_generator_set_canonical()= and comment
+  emission do not combine.
+- A comment at the very end of a file, with no node after it, has nothing to
+  attach to and is dropped.
+- Capture costs one extra scanner pass over the source, which is why it is
+  off by default.

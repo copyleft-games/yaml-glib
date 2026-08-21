@@ -12,6 +12,7 @@
 #include "yaml-mapping.h"
 #include "yaml-sequence.h"
 #include "yaml-private.h"
+#include "yaml-writer.h"
 #include <yaml.h>
 #include <string.h>
 
@@ -25,6 +26,7 @@ typedef struct
     gchar        *line_break;
     gboolean      explicit_start;
     gboolean      explicit_end;
+    gboolean      emit_comments;
 } YamlGeneratorPrivate;
 
 G_DEFINE_TYPE_WITH_PRIVATE(YamlGenerator, yaml_generator, G_TYPE_OBJECT)
@@ -207,6 +209,7 @@ yaml_generator_init(YamlGenerator *self)
     priv->line_break = g_strdup("unix");
     priv->explicit_start = FALSE;
     priv->explicit_end = FALSE;
+    priv->emit_comments = FALSE;
 }
 
 YamlGenerator *
@@ -781,6 +784,23 @@ yaml_generator_to_data(
         return NULL;
     }
 
+    /*
+     * Comments take the other path.  libyaml's emitter has no notion of
+     * them and no way to interleave raw text without corrupting the column
+     * tracking it uses for indentation, so a comment-preserving write goes
+     * through our own block writer instead.  Everything else -- flow style,
+     * canonical output, anchors -- stays on libyaml, which does it better.
+     */
+    if (priv->emit_comments)
+    {
+        result = yaml_writer_render(root, priv->indent_spaces);
+
+        if (length != NULL)
+            *length = (result != NULL) ? strlen(result) : 0;
+
+        return result;
+    }
+
     /* Initialize emitter */
     if (!yaml_emitter_initialize(&emitter))
     {
@@ -1169,4 +1189,26 @@ yaml_generator_to_gfile_finish(
     g_return_val_if_fail(g_task_is_valid(result, generator), FALSE);
 
     return g_task_propagate_boolean(G_TASK(result), error);
+}
+
+void
+yaml_generator_set_emit_comments(YamlGenerator *generator, gboolean emit)
+{
+    YamlGeneratorPrivate *priv;
+
+    g_return_if_fail(YAML_IS_GENERATOR(generator));
+
+    priv = yaml_generator_get_instance_private(generator);
+    priv->emit_comments = emit;
+}
+
+gboolean
+yaml_generator_get_emit_comments(YamlGenerator *generator)
+{
+    YamlGeneratorPrivate *priv;
+
+    g_return_val_if_fail(YAML_IS_GENERATOR(generator), FALSE);
+
+    priv = yaml_generator_get_instance_private(generator);
+    return priv->emit_comments;
 }

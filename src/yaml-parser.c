@@ -13,6 +13,7 @@
 #include "yaml-mapping.h"
 #include "yaml-sequence.h"
 #include "yaml-private.h"
+#include "yaml-comments.h"
 #include <yaml.h>
 #include <string.h>
 
@@ -20,6 +21,7 @@ typedef struct
 {
     GPtrArray   *documents;
     gboolean     immutable;
+    gboolean     capture_comments;
     guint        current_line;
     guint        current_column;
 } YamlParserPrivate;
@@ -219,6 +221,7 @@ yaml_parser_init(YamlParser *self)
 
     priv->documents = g_ptr_array_new_with_free_func(g_object_unref);
     priv->immutable = FALSE;
+    priv->capture_comments = FALSE;
     priv->current_line = 0;
     priv->current_column = 0;
 }
@@ -264,14 +267,48 @@ yaml_parser_set_immutable(
 }
 
 /*
+ * Internal: move the comments sitting around @line onto @node.
+ *
+ * Called with the line of the thing a reader would say the comment is
+ * about -- a mapping key, or a sequence element -- rather than the line
+ * libyaml happens to record for the value.
+ */
+static void
+attach_comments(
+    YamlNode         *node,
+    YamlCommentIndex *comments,
+    guint             line
+)
+{
+    GPtrArray *leading;
+    const gchar *trailing;
+
+    yaml_node_set_blank_before(node,
+                               yaml_comment_index_has_blank_before(comments, line));
+
+    leading = yaml_comment_index_take_leading(comments, line);
+    if (leading != NULL)
+    {
+        yaml_node_set_leading_comments(node, leading);
+        g_ptr_array_unref(leading);
+    }
+
+    trailing = yaml_comment_index_get_trailing(comments, line);
+    if (trailing != NULL)
+        yaml_node_set_trailing_comment(node, trailing);
+}
+
+/*
  * Internal: Convert a libyaml node to a YamlNode.
  * Recursively processes all children.
  */
 static YamlNode *
 convert_yaml_node(
-    yaml_document_t *doc,
-    yaml_node_t     *ynode,
-    GHashTable      *anchors
+    yaml_document_t  *doc,
+    yaml_node_t      *ynode,
+    GHashTable       *anchors,
+    YamlCommentIndex *comments,
+    gint              anchor_line
 )
 {
     YamlNode *node;
@@ -280,6 +317,23 @@ convert_yaml_node(
         return NULL;
 
     node = yaml_node_alloc();
+
+    /*
+     * Claim comments before descending, not after.
+     *
+     * Conversion is depth-first, so attaching on the way back up lets the
+     * innermost node reach a comment first.  For
+     *
+     *     # the first agent
+     *     - id: chief
+     *
+     * the scalar `chief` and the sequence entry are both anchored to the
+     * same line; done bottom-up, `chief` wins and the comment ends up
+     * buried on a value nobody was commenting about.  Outermost-first
+     * gives it to the entry, which is what was meant.
+     */
+    if (comments != NULL && anchor_line >= 0)
+        attach_comments(node, comments, (guint)anchor_line);
 
     /* Handle tag */
     if (ynode->tag != NULL)
@@ -309,6 +363,35 @@ convert_yaml_node(
             {
                 yaml_node_init_string(node, scalar_value);
             }
+
+            /*
+             * Remember how it was written.  Without this every scalar comes
+             * back styleless, and a writer that has to guess will quote
+             * anything that could be mistaken for another type -- turning a
+             * plain `enabled: true` into `enabled: 'true'` and changing a
+             * boolean into a string on the way through.
+             */
+            switch (ynode->data.scalar.style)
+            {
+                case YAML_PLAIN_SCALAR_STYLE:
+                    yaml_node_set_scalar_style(node, YAML_SCALAR_STYLE_PLAIN);
+                    break;
+                case YAML_SINGLE_QUOTED_SCALAR_STYLE:
+                    yaml_node_set_scalar_style(node, YAML_SCALAR_STYLE_SINGLE_QUOTED);
+                    break;
+                case YAML_DOUBLE_QUOTED_SCALAR_STYLE:
+                    yaml_node_set_scalar_style(node, YAML_SCALAR_STYLE_DOUBLE_QUOTED);
+                    break;
+                case YAML_LITERAL_SCALAR_STYLE:
+                    yaml_node_set_scalar_style(node, YAML_SCALAR_STYLE_LITERAL);
+                    break;
+                case YAML_FOLDED_SCALAR_STYLE:
+                    yaml_node_set_scalar_style(node, YAML_SCALAR_STYLE_FOLDED);
+                    break;
+                case YAML_ANY_SCALAR_STYLE:
+                default:
+                    break;
+            }
             break;
         }
 
@@ -323,7 +406,9 @@ convert_yaml_node(
                  item++)
             {
                 yaml_node_t *child_ynode = yaml_document_get_node(doc, *item);
-                YamlNode *child = convert_yaml_node(doc, child_ynode, anchors);
+                YamlNode *child = convert_yaml_node(
+                    doc, child_ynode, anchors, comments,
+                    child_ynode != NULL ? (gint)child_ynode->start_mark.line : -1);
 
                 if (child != NULL)
                 {
@@ -358,7 +443,9 @@ convert_yaml_node(
 
                 if (key != NULL)
                 {
-                    YamlNode *value = convert_yaml_node(doc, value_ynode, anchors);
+                    YamlNode *value = convert_yaml_node(
+                        doc, value_ynode, anchors, comments,
+                        key_ynode != NULL ? (gint)key_ynode->start_mark.line : -1);
 
                     if (value != NULL)
                     {
@@ -398,6 +485,15 @@ yaml_parser_parse_internal(
     yaml_document_t doc;
     gboolean success = TRUE;
     GHashTable *anchors;
+    YamlCommentIndex *comments = NULL;
+
+    /*
+     * Built once for the whole source, before the document parse.  It needs
+     * its own scanner pass, so it is only paid for when the caller asked
+     * for comments.
+     */
+    if (priv->capture_comments)
+        comments = yaml_comment_index_new(data, length);
 
     if (!yaml_parser_initialize(&parser))
     {
@@ -422,6 +518,7 @@ yaml_parser_parse_internal(
         YamlDocument *yaml_doc;
         yaml_node_t *root;
         YamlNode *root_node;
+        GPtrArray *header;
 
         if (!yaml_parser_load(&parser, &doc))
         {
@@ -453,7 +550,24 @@ yaml_parser_parse_internal(
 
         g_signal_emit(self, signals[SIGNAL_DOCUMENT_START], 0);
 
-        root_node = convert_yaml_node(&doc, root, anchors);
+        /*
+         * The file's header block is claimed first and separately.  It has
+         * to be: the root's start mark is the first key's line, so the two
+         * have an equal claim to anything above it, and the header would
+         * otherwise reappear indented under whichever key won.
+         */
+        header = (comments != NULL)
+                 ? yaml_comment_index_take_header(comments)
+                 : NULL;
+
+        root_node = convert_yaml_node(&doc, root, anchors, comments, -1);
+
+        if (header != NULL)
+        {
+            if (root_node != NULL)
+                yaml_node_set_leading_comments(root_node, header);
+            g_ptr_array_unref(header);
+        }
 
         yaml_doc = yaml_document_new();
         yaml_document_set_root(yaml_doc, root_node);
@@ -470,6 +584,7 @@ yaml_parser_parse_internal(
     }
 
     g_hash_table_destroy(anchors);
+    g_clear_pointer(&comments, yaml_comment_index_free);
     yaml_parser_delete(&parser);
 
     g_signal_emit(self, signals[SIGNAL_PARSE_END], 0);
@@ -892,4 +1007,26 @@ yaml_parser_reset(YamlParser *parser)
     g_ptr_array_set_size(priv->documents, 0);
     priv->current_line = 0;
     priv->current_column = 0;
+}
+
+void
+yaml_parser_set_capture_comments(YamlParser *parser, gboolean capture)
+{
+    YamlParserPrivate *priv;
+
+    g_return_if_fail(YAML_IS_PARSER(parser));
+
+    priv = yaml_parser_get_instance_private(parser);
+    priv->capture_comments = capture;
+}
+
+gboolean
+yaml_parser_get_capture_comments(YamlParser *parser)
+{
+    YamlParserPrivate *priv;
+
+    g_return_val_if_fail(YAML_IS_PARSER(parser), FALSE);
+
+    priv = yaml_parser_get_instance_private(parser);
+    return priv->capture_comments;
 }

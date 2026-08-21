@@ -858,6 +858,129 @@ yaml_node_to_json_node(YamlNode *node);
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC(YamlNode, yaml_node_unref)
 
+
+/* ── Comments ─────────────────────────────────────────────────────────
+ *
+ * libyaml discards comments: they are not tokens and never reach the
+ * document API, so a parse/emit round-trip through this library used to
+ * silently delete every comment in the file.  That is fine for machine
+ * data and unacceptable for a configuration file somebody hand-edits.
+ *
+ * Comments are recovered by the parser from the source text and anchored
+ * by line number, which is an approximation with one visible consequence:
+ * a comment is associated with whatever node begins on the next
+ * non-blank line, so a comment written between two members attaches to the
+ * later one.  That is what a reader means almost always, and it is stable
+ * across round-trips.
+ *
+ * Capture is opt-in via yaml_parser_set_capture_comments(), and emission is
+ * opt-in via yaml_generator_set_emit_comments(), so nothing changes for
+ * existing callers.
+ */
+
+/**
+ * yaml_node_get_leading_comments:
+ * @node: a #YamlNode
+ *
+ * Gets the whole-line comments immediately preceding @node, in source
+ * order, with the leading '#' and one following space removed.  A blank
+ * line within the run is represented by an empty string, so an author's
+ * paragraph breaks survive a round-trip.
+ *
+ * Returns: (transfer none) (nullable) (element-type utf8): the comments, or
+ *   %NULL if @node has none
+ */
+GPtrArray *
+yaml_node_get_leading_comments(YamlNode *node);
+
+/**
+ * yaml_node_set_leading_comments:
+ * @node: a #YamlNode
+ * @comments: (nullable) (element-type utf8): comment lines without '#', or
+ *   %NULL to clear
+ *
+ * Replaces the leading comments of @node.  The array is copied.
+ */
+void
+yaml_node_set_leading_comments(YamlNode  *node,
+                               GPtrArray *comments);
+
+/**
+ * yaml_node_add_leading_comment:
+ * @node: a #YamlNode
+ * @comment: a comment line, without the leading '#'
+ *
+ * Appends one line to @node's leading comments.  Pass an empty string for a
+ * blank separator line.
+ */
+void
+yaml_node_add_leading_comment(YamlNode    *node,
+                              const gchar *comment);
+
+/**
+ * yaml_node_get_trailing_comment:
+ * @node: a #YamlNode
+ *
+ * Gets the comment that shared @node's own line, if any, with the leading
+ * '#' and one following space removed.
+ *
+ * Returns: (transfer none) (nullable): the comment, or %NULL
+ */
+const gchar *
+yaml_node_get_trailing_comment(YamlNode *node);
+
+/**
+ * yaml_node_set_trailing_comment:
+ * @node: a #YamlNode
+ * @comment: (nullable): a comment without the leading '#', or %NULL to clear
+ *
+ * Sets the comment emitted on the same line as @node.
+ */
+void
+yaml_node_set_trailing_comment(YamlNode    *node,
+                               const gchar *comment);
+
+/**
+ * yaml_node_get_blank_before:
+ * @node: a #YamlNode
+ *
+ * Returns: %TRUE if a blank line separated @node (or its comment block)
+ *   from whatever came before it
+ */
+gboolean
+yaml_node_get_blank_before(YamlNode *node);
+
+/**
+ * yaml_node_set_blank_before:
+ * @node: a #YamlNode
+ * @blank_before: whether to emit a blank line above @node
+ *
+ * Controls whether a generator writing comments puts a blank line above
+ * @node.  Set by the parser from the source so that the spacing an author
+ * used between sections survives a write-back.
+ */
+void
+yaml_node_set_blank_before(YamlNode *node,
+                           gboolean  blank_before);
+
+/**
+ * yaml_node_clear_comments:
+ * @node: a #YamlNode
+ *
+ * Removes every comment attached to @node.  Does not recurse.
+ */
+void
+yaml_node_clear_comments(YamlNode *node);
+
+/**
+ * yaml_node_has_comments:
+ * @node: a #YamlNode
+ *
+ * Returns: %TRUE if @node carries any leading or trailing comment
+ */
+gboolean
+yaml_node_has_comments(YamlNode *node);
+
 G_END_DECLS
 
 #endif /* __YAML_NODE_H__ */

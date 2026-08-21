@@ -422,6 +422,45 @@ yaml_parser_get_current_column(YamlParser *parser);
 void
 yaml_parser_reset(YamlParser *parser);
 
+
+/**
+ * yaml_parser_set_capture_comments:
+ * @parser: a #YamlParser
+ * @capture: whether to recover comments from the source
+ *
+ * Controls whether parsed nodes carry the comments that surrounded them in
+ * the source text.
+ *
+ * libyaml discards comments -- they are not tokens and never reach the
+ * document API -- so by default a parse/emit round-trip through this
+ * library deletes every comment in the file.  That is fine for machine
+ * data and wrong for a configuration file somebody hand-edits.
+ *
+ * With capture on, the parser recovers comments from the source and
+ * attaches each one to the node that begins on the next content line, where
+ * they can be read back with yaml_node_get_leading_comments() and written
+ * out again by a generator with yaml_generator_set_emit_comments().
+ *
+ * This costs one extra scanner pass over the source, so it is off by
+ * default rather than free.
+ *
+ * Since: 0.4.0
+ */
+void
+yaml_parser_set_capture_comments(YamlParser *parser,
+                                 gboolean    capture);
+
+/**
+ * yaml_parser_get_capture_comments:
+ * @parser: a #YamlParser
+ *
+ * Returns: %TRUE if comment capture is enabled
+ *
+ * Since: 0.4.0
+ */
+gboolean
+yaml_parser_get_capture_comments(YamlParser *parser);
+
 G_END_DECLS
 
 #endif /* __YAML_PARSER_H__ */

@@ -449,6 +449,39 @@ yaml_generator_to_gfile_finish(
     GError        **error
 );
 
+
+/**
+ * yaml_generator_set_emit_comments:
+ * @generator: a #YamlGenerator
+ * @emit: whether to write out the comments attached to nodes
+ *
+ * Controls whether generation preserves the comments carried by nodes --
+ * the ones yaml_parser_set_capture_comments() recovered, and any set
+ * directly with yaml_node_set_leading_comments().
+ *
+ * Turning this on switches to a block-style writer, because libyaml's
+ * emitter has no notion of comments.  That writer emits block style only:
+ * flow style, canonical output and anchors stay on the default path.  For
+ * a configuration file -- the case this exists for -- block style is what
+ * you want anyway.
+ *
+ * Since: 0.4.0
+ */
+void
+yaml_generator_set_emit_comments(YamlGenerator *generator,
+                                 gboolean       emit);
+
+/**
+ * yaml_generator_get_emit_comments:
+ * @generator: a #YamlGenerator
+ *
+ * Returns: %TRUE if comment emission is enabled
+ *
+ * Since: 0.4.0
+ */
+gboolean
+yaml_generator_get_emit_comments(YamlGenerator *generator);
+
 G_END_DECLS
 
 #endif /* __YAML_GENERATOR_H__ */

@@ -27,6 +27,8 @@ yaml_node_clear_internal(YamlNode *node)
 
     g_clear_pointer(&node->tag, g_free);
     g_clear_pointer(&node->anchor, g_free);
+    g_clear_pointer(&node->leading_comments, g_ptr_array_unref);
+    g_clear_pointer(&node->trailing_comment, g_free);
 
     switch (node->type)
     {
@@ -329,6 +331,30 @@ yaml_node_copy(YamlNode *node)
     copy->type = node->type;
     copy->tag = g_strdup(node->tag);
     copy->anchor = g_strdup(node->anchor);
+    copy->trailing_comment = g_strdup(node->trailing_comment);
+    copy->blank_before = node->blank_before;
+
+    /*
+     * Comments are part of the node's content, not incidental metadata: a
+     * copy that dropped them would silently strip the author's notes the
+     * first time anything round-tripped through yaml_node_copy().
+     */
+    if (node->leading_comments != NULL)
+    {
+        guint comment_index;
+
+        copy->leading_comments =
+            g_ptr_array_new_with_free_func(g_free);
+
+        for (comment_index = 0;
+             comment_index < node->leading_comments->len;
+             comment_index++)
+        {
+            g_ptr_array_add(copy->leading_comments,
+                            g_strdup(g_ptr_array_index(node->leading_comments,
+                                                       comment_index)));
+        }
+    }
 
     switch (node->type)
     {
@@ -1161,4 +1187,125 @@ GQuark
 yaml_schema_error_quark(void)
 {
     return g_quark_from_static_string("yaml-schema-error-quark");
+}
+
+/* ── Comments ─────────────────────────────────────────────────────────
+ *
+ * Storage lives in YamlNode; the parser fills it in from the source text
+ * and the generator writes it back out.  See yaml-private.h for why this
+ * cannot come from libyaml itself.
+ */
+
+GPtrArray *
+yaml_node_get_leading_comments(YamlNode *node)
+{
+    g_return_val_if_fail(node != NULL, NULL);
+
+    return node->leading_comments;
+}
+
+void
+yaml_node_set_leading_comments(YamlNode  *node,
+                               GPtrArray *comments)
+{
+    guint comment_index;
+
+    g_return_if_fail(node != NULL);
+    g_return_if_fail(!node->immutable);
+
+    g_clear_pointer(&node->leading_comments, g_ptr_array_unref);
+
+    if (comments == NULL || comments->len == 0)
+        return;
+
+    /*
+     * Copied rather than referenced.  Sharing the caller's array would let
+     * a later change on their side mutate a sealed document's comments, and
+     * the arrays are a handful of short strings.
+     */
+    node->leading_comments = g_ptr_array_new_with_free_func(g_free);
+
+    for (comment_index = 0; comment_index < comments->len; comment_index++)
+    {
+        const gchar *line = g_ptr_array_index(comments, comment_index);
+
+        g_ptr_array_add(node->leading_comments,
+                        g_strdup(line != NULL ? line : ""));
+    }
+}
+
+void
+yaml_node_add_leading_comment(YamlNode    *node,
+                              const gchar *comment)
+{
+    g_return_if_fail(node != NULL);
+    g_return_if_fail(!node->immutable);
+    g_return_if_fail(comment != NULL);
+
+    if (node->leading_comments == NULL)
+        node->leading_comments = g_ptr_array_new_with_free_func(g_free);
+
+    g_ptr_array_add(node->leading_comments, g_strdup(comment));
+}
+
+const gchar *
+yaml_node_get_trailing_comment(YamlNode *node)
+{
+    g_return_val_if_fail(node != NULL, NULL);
+
+    return node->trailing_comment;
+}
+
+void
+yaml_node_set_trailing_comment(YamlNode    *node,
+                               const gchar *comment)
+{
+    g_return_if_fail(node != NULL);
+    g_return_if_fail(!node->immutable);
+
+    g_clear_pointer(&node->trailing_comment, g_free);
+
+    /*
+     * An empty trailing comment is stored as NULL rather than "": emitting
+     * a bare '#' at the end of a line is not what an empty string means,
+     * and it would accumulate one per round-trip.
+     */
+    if (comment != NULL && *comment != '\0')
+        node->trailing_comment = g_strdup(comment);
+}
+
+void
+yaml_node_clear_comments(YamlNode *node)
+{
+    g_return_if_fail(node != NULL);
+    g_return_if_fail(!node->immutable);
+
+    g_clear_pointer(&node->leading_comments, g_ptr_array_unref);
+    g_clear_pointer(&node->trailing_comment, g_free);
+}
+
+gboolean
+yaml_node_get_blank_before(YamlNode *node)
+{
+    g_return_val_if_fail(node != NULL, FALSE);
+
+    return node->blank_before;
+}
+
+void
+yaml_node_set_blank_before(YamlNode *node, gboolean blank_before)
+{
+    g_return_if_fail(node != NULL);
+    g_return_if_fail(!node->immutable);
+
+    node->blank_before = blank_before;
+}
+
+gboolean
+yaml_node_has_comments(YamlNode *node)
+{
+    g_return_val_if_fail(node != NULL, FALSE);
+
+    return (node->leading_comments != NULL && node->leading_comments->len > 0) ||
+           node->trailing_comment != NULL;
 }

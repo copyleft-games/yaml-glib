@@ -36,6 +36,32 @@ struct _YamlNode
     gchar        *tag;
     gchar        *anchor;
 
+    /*
+     * Comments attached to this node.
+     *
+     * libyaml discards comments entirely -- they are not tokens and never
+     * reach the document API -- so these are recovered by the parser from
+     * the source text, anchored by line number, and are only populated when
+     * yaml_parser_set_capture_comments() asked for them.
+     *
+     * leading_comments holds the run of whole-line comments immediately
+     * above the node, in source order, without the leading '#'.  A blank
+     * line inside that run is preserved as an empty string so round-tripping
+     * keeps the author's paragraph breaks.
+     *
+     * trailing_comment is a comment that shared the node's own line.
+     */
+    GPtrArray    *leading_comments;  /* gchar*, or NULL when there are none */
+    gchar        *trailing_comment;
+
+    /*
+     * Whether a blank line sat above this node (or above its comment block)
+     * in the source.  Without it, every blank line between sections is lost
+     * on the first write-back and a config file people navigate visually
+     * collapses into one dense block.
+     */
+    gboolean      blank_before;
+
     /* Type-specific data */
     union {
         YamlMapping  *mapping;

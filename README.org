@@ -6,6 +6,7 @@ A GLib/GObject-based YAML library for C, providing a high-level API for parsing,
 - *Build* YAML programmatically with a fluent builder API
 - *Generate* YAML output with configurable formatting
 - *Validate* YAML against schemas with type and constraint checking
+- *Preserve comments* through a parse/generate round-trip (opt-in)
 - *Convert* bidirectionally between YAML and JSON-GLib
 - *Serialize* GObjects to/from YAML with custom serialization support
 - *Reference-counted* boxed types with GLib memory management patterns
