@@ -299,6 +299,22 @@ attach_comments(
 }
 
 /*
+ * A node whose conversion has started and not finished.
+ *
+ * Distinct from "not seen" (absent) and from "converted" (the node), so
+ * a reference reaching one of these is a cycle rather than a repeat.
+ * Never dereferenced; it is only ever compared.
+ */
+#define YAML_NODE_IN_PROGRESS ((YamlNode *)(gpointer)1)
+
+static void
+anchors_value_free(gpointer value)
+{
+    if (value != NULL && value != YAML_NODE_IN_PROGRESS)
+        yaml_node_unref(value);
+}
+
+/*
  * Internal: Convert a libyaml node to a YamlNode.
  * Recursively processes all children.
  */
@@ -315,6 +331,43 @@ convert_yaml_node(
 
     if (ynode == NULL)
         return NULL;
+
+    /*
+     * An alias and its anchor are the *same* yaml_node_t, so a document
+     * that references one twice used to be converted twice, and one that
+     * references itself was converted for ever.
+     *
+     * libyaml registers an anchor before it loads the anchored node's
+     * children, so `a: &x { self: *x }` is a genuinely cyclic
+     * yaml_document_t -- twenty-seven bytes, and this function recursed
+     * into it until the stack ran out.  Anything that reads a YAML file
+     * somebody else can write inherited that.
+     *
+     * @anchors was created for exactly this, threaded through every
+     * recursive call and destroyed at the end, and never once inserted
+     * into or looked up: the guard was written and never wired up.  It
+     * is wired up here, keyed on the libyaml node rather than on the
+     * anchor name -- an alias is resolved by libyaml before we see it,
+     * so the name is not what identifies a repeat.
+     *
+     * A node still being built is a cycle rather than a repeat.  It is
+     * refused instead of shared: sharing it would make the tree
+     * unfreeable and send every recursive consumer -- the generator
+     * among them -- round the loop this function just stopped going
+     * round.
+     */
+    if (anchors != NULL)
+    {
+        YamlNode *seen = g_hash_table_lookup(anchors, ynode);
+
+        if (seen == YAML_NODE_IN_PROGRESS)
+            return NULL;
+
+        if (seen != NULL)
+            return yaml_node_ref(seen);
+
+        g_hash_table_insert(anchors, ynode, YAML_NODE_IN_PROGRESS);
+    }
 
     node = yaml_node_alloc();
 
@@ -466,6 +519,16 @@ convert_yaml_node(
             break;
     }
 
+    /*
+     * Built: replace the in-progress marker with the node itself, so a
+     * later alias to the same anchor shares it rather than converting
+     * the whole subtree again.  Without this an anchor referenced nine
+     * deep by nine aliases was 9^9 conversions -- a 478-byte file that
+     * exhausted four gigabytes in six seconds.
+     */
+    if (anchors != NULL)
+        g_hash_table_insert(anchors, ynode, yaml_node_ref(node));
+
     return node;
 }
 
@@ -510,8 +573,14 @@ yaml_parser_parse_internal(
 
     g_signal_emit(self, signals[SIGNAL_PARSE_START], 0);
 
-    anchors = g_hash_table_new_full(g_str_hash, g_str_equal,
-                                    g_free, (GDestroyNotify)yaml_node_unref);
+    /*
+     * Keyed on the libyaml node, not on the anchor name: libyaml resolves
+     * an alias to the very node it aliases before this code runs, so the
+     * pointer is what identifies a repeat.  The marker value is not a
+     * node and must not be unref'd, which anchors_value_free handles.
+     */
+    anchors = g_hash_table_new_full(g_direct_hash, g_direct_equal,
+                                    NULL, anchors_value_free);
 
     while (TRUE)
     {
@@ -559,6 +628,17 @@ yaml_parser_parse_internal(
         header = (comments != NULL)
                  ? yaml_comment_index_take_header(comments)
                  : NULL;
+
+        /*
+         * Emptied per document, not per parse.
+         *
+         * An anchor's scope is one document -- and more to the point the
+         * memo is keyed on the libyaml node, and libyaml hands the next
+         * document's nodes the very addresses the last one's occupied
+         * once yaml_document_delete() has run.  Carried across, document
+         * two's root was answered with document one's tree.
+         */
+        g_hash_table_remove_all(anchors);
 
         root_node = convert_yaml_node(&doc, root, anchors, comments, -1);
 

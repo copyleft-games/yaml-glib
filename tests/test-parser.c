@@ -445,6 +445,73 @@ test_parser_null_values(void)
     g_assert_true(yaml_node_is_null(n3));
 }
 
+/*
+ * A document that references itself is not a stack overflow.
+ *
+ * libyaml registers an anchor before it loads the anchored node's
+ * children, so `a: &x { self: *x }` really is a cyclic yaml_document_t.
+ * convert_yaml_node() recursed into it until the stack ran out --
+ * twenty-seven bytes to kill any process that reads a YAML file
+ * somebody else can write.  The @anchors table that exists to stop this
+ * was created, threaded through every recursive call and destroyed, and
+ * never once inserted into or looked up.
+ */
+static void
+test_parser_self_referential_alias(void)
+{
+    g_autoptr(YamlParser) parser = yaml_parser_new();
+    g_autoptr(GError) error = NULL;
+    gboolean ok;
+
+    ok = yaml_parser_load_from_data(parser,
+                                    "a: &anchor\n"
+                                    "  self: *anchor\n",
+                                    -1, &error);
+
+    /* Either answer is fine.  Dying is not. */
+    if (!ok)
+        g_assert_nonnull(error);
+    else
+        g_assert_nonnull(yaml_parser_get_document(parser, 0));
+}
+
+/*
+ * And an anchor referenced many times is converted once.
+ *
+ * An alias and its anchor are the same yaml_node_t, so without the memo
+ * each reference converted the whole subtree again: nine levels of nine
+ * references is 9^9 nodes.  A 493-byte file exhausted four gigabytes in
+ * six seconds -- a billion laughs, from a parser used on config files.
+ *
+ * Asserted by completing at all, since the exponential version does not.
+ */
+static void
+test_parser_repeated_alias_is_converted_once(void)
+{
+    g_autoptr(YamlParser) parser = yaml_parser_new();
+    g_autoptr(GError) error = NULL;
+    g_autoptr(GString) yaml = g_string_new("l0: &a0 x\n");
+    guint level;
+
+    for (level = 1; level < 9; level++)
+    {
+        guint ref;
+
+        g_string_append_printf(yaml, "l%u: &a%u [", level, level);
+
+        for (ref = 0; ref < 9; ref++)
+            g_string_append_printf(yaml, "%s*a%u", ref > 0 ? ", " : "",
+                                   level - 1);
+
+        g_string_append(yaml, "]\n");
+    }
+
+    g_assert_true(yaml_parser_load_from_data(parser, yaml->str, -1,
+                                             &error));
+    g_assert_no_error(error);
+    g_assert_nonnull(yaml_parser_get_document(parser, 0));
+}
+
 int
 main(
     int   argc,
@@ -473,6 +540,10 @@ main(
     g_test_add_func("/parser/error_tab_indentation",
                     test_parser_error_tab_indentation);
     g_test_add_func("/parser/null_values", test_parser_null_values);
+    g_test_add_func("/parser/self_referential_alias",
+                    test_parser_self_referential_alias);
+    g_test_add_func("/parser/repeated_alias_converted_once",
+                    test_parser_repeated_alias_is_converted_once);
 
     return g_test_run();
 }
