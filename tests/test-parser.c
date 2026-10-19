@@ -445,6 +445,33 @@ test_parser_null_values(void)
     g_assert_true(yaml_node_is_null(n3));
 }
 
+/* A quoted "null", "~" or "" is a string, never null (YAML 1.2) */
+static void
+test_parser_quoted_null_is_string(void)
+{
+    g_autoptr(YamlParser) parser = yaml_parser_new();
+    g_autoptr(GError) error = NULL;
+    const gchar *yaml =
+        "double: \"null\"\n"
+        "single: 'NULL'\n"
+        "tilde: \"~\"\n"
+        "empty: \"\"\n"
+        "plain: Null\n";
+    YamlMapping *mapping;
+
+    g_assert_true(yaml_parser_load_from_data(parser, yaml, -1, &error));
+    g_assert_no_error(error);
+    mapping = yaml_node_get_mapping(yaml_parser_get_root(parser));
+
+    g_assert_false(yaml_node_is_null(yaml_mapping_get_member(mapping, "double")));
+    g_assert_cmpstr(yaml_mapping_get_string_member(mapping, "double"), ==, "null");
+    g_assert_cmpstr(yaml_mapping_get_string_member(mapping, "single"), ==, "NULL");
+    g_assert_cmpstr(yaml_mapping_get_string_member(mapping, "tilde"), ==, "~");
+    g_assert_false(yaml_node_is_null(yaml_mapping_get_member(mapping, "empty")));
+    g_assert_cmpstr(yaml_mapping_get_string_member(mapping, "empty"), ==, "");
+    g_assert_true(yaml_node_is_null(yaml_mapping_get_member(mapping, "plain")));
+}
+
 /*
  * A document that references itself is not a stack overflow.
  *
@@ -540,6 +567,7 @@ main(
     g_test_add_func("/parser/error_tab_indentation",
                     test_parser_error_tab_indentation);
     g_test_add_func("/parser/null_values", test_parser_null_values);
+    g_test_add_func("/parser/quoted_null_is_string", test_parser_quoted_null_is_string);
     g_test_add_func("/parser/self_referential_alias",
                     test_parser_self_referential_alias);
     g_test_add_func("/parser/repeated_alias_converted_once",

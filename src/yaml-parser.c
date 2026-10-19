@@ -405,10 +405,16 @@ convert_yaml_node(
         {
             const gchar *scalar_value = (const gchar *)ynode->data.scalar.value;
 
-            /* Check for null values */
-            if (scalar_value == NULL || scalar_value[0] == '\0' ||
-                g_strcmp0(scalar_value, "~") == 0 ||
-                g_ascii_strcasecmp(scalar_value, "null") == 0)
+            /*
+             * Check for null values.  Only a plain scalar can be null
+             * (YAML 1.2 core schema: "", ~, null): a quoted "null", "~"
+             * or "" is the string it spells.
+             */
+            if (scalar_value == NULL ||
+                (ynode->data.scalar.style == YAML_PLAIN_SCALAR_STYLE &&
+                 (scalar_value[0] == '\0' ||
+                  g_strcmp0(scalar_value, "~") == 0 ||
+                  g_ascii_strcasecmp(scalar_value, "null") == 0)))
             {
                 yaml_node_init_null(node);
             }
