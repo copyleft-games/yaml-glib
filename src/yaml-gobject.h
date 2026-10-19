@@ -121,7 +121,7 @@ typedef gpointer   (*YamlBoxedDeserializeFunc) (YamlNode *node);
 /**
  * yaml_boxed_register_serialize_func:
  * @gtype: the boxed #GType
- * @serialize_func: the serialization function
+ * @serialize_func: (scope forever): the serialization function
  *
  * Registers a serialization function for a boxed type.
  *
@@ -136,7 +136,7 @@ yaml_boxed_register_serialize_func(
 /**
  * yaml_boxed_register_deserialize_func:
  * @gtype: the boxed #GType
- * @deserialize_func: the deserialization function
+ * @deserialize_func: (scope forever): the deserialization function
  *
  * Registers a deserialization function for a boxed type.
  *

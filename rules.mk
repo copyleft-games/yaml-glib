@@ -44,12 +44,15 @@ endif
 $(OUTDIR)/$(GIR_FILE): $(LIB_SRCS) $(LIB_HDRS) | $(OUTDIR)/$(LIB_SHARED_FULL)
 	$(GIR_SCANNER) \
 		--namespace=$(GIR_NAMESPACE) \
+		--identifier-prefix=Yaml \
+		--symbol-prefix=yaml \
 		--nsversion=$(GIR_VERSION) \
 		--library=$(LIB_NAME) \
 		--library-path=$(OUTDIR) \
 		--include=GLib-2.0 \
 		--include=GObject-2.0 \
 		--include=Gio-2.0 \
+		--include=Json-1.0 \
 		--pkg=glib-2.0 \
 		--pkg=gobject-2.0 \
 		--pkg=gio-2.0 \
