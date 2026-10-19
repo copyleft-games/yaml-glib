@@ -602,15 +602,24 @@ yaml_parser_parse_internal(
                 priv->current_line = parser.problem_mark.line + 1;
                 priv->current_column = parser.problem_mark.column + 1;
 
-                g_set_error(error,
-                            YAML_GLIB_PARSER_ERROR,
-                            YAML_GLIB_PARSER_ERROR_PARSE,
-                            "Parse error at line %u, column %u: %s",
-                            priv->current_line,
-                            priv->current_column,
-                            parser.problem ? parser.problem : "unknown error");
+                GError *parse_error;
 
-                g_signal_emit(self, signals[SIGNAL_ERROR], 0, *error);
+                /*
+                 * Built locally and propagated afterwards: @error may be
+                 * NULL, and ::error is emitted either way, so the signal
+                 * must not be handed *error.  Doing so dereferenced the
+                 * caller's NULL on every malformed input.
+                 */
+                parse_error = g_error_new(YAML_GLIB_PARSER_ERROR,
+                                          YAML_GLIB_PARSER_ERROR_PARSE,
+                                          "Parse error at line %u, column %u: %s",
+                                          priv->current_line,
+                                          priv->current_column,
+                                          parser.problem ? parser.problem
+                                                         : "unknown error");
+
+                g_signal_emit(self, signals[SIGNAL_ERROR], 0, parse_error);
+                g_propagate_error(error, parse_error);
                 success = FALSE;
             }
             break;

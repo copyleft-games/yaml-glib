@@ -539,6 +539,151 @@ test_parser_repeated_alias_is_converted_once(void)
     g_assert_nonnull(yaml_parser_get_document(parser, 0));
 }
 
+/*
+ * Malformed input with a NULL GError ** is a FALSE return, not a crash.
+ *
+ * GLib's contract is that every GError ** may be NULL: g_set_error()
+ * honours it, and callers that only care about success rely on it.  The
+ * parse-error path then handed `*error` to the ::error signal and so
+ * dereferenced the NULL the caller passed -- an unterminated flow
+ * sequence segfaulted any process that ignored the error.  Each load
+ * entry point is exercised, since they all funnel into the same path.
+ */
+#define MALFORMED_YAML "matches: ["
+
+/* ::error handler: records that it ran and what it was given */
+static void
+on_parser_error(
+    YamlParser *parser,
+    GError     *error,
+    gpointer    user_data
+)
+{
+    gboolean *seen = (gboolean *)user_data;
+
+    (void)parser;
+    g_assert_nonnull(error);
+    g_assert_error(error, YAML_GLIB_PARSER_ERROR,
+                   YAML_GLIB_PARSER_ERROR_PARSE);
+    *seen = TRUE;
+}
+
+/* Writes MALFORMED_YAML to a fresh temp file; caller unlinks + frees */
+static gchar *
+write_malformed_tmpfile(void)
+{
+    gchar *path = NULL;
+    gint fd;
+
+    fd = g_file_open_tmp("yaml-glib-null-error-XXXXXX.yaml", &path, NULL);
+    g_assert_cmpint(fd, >=, 0);
+    g_assert_true(g_file_set_contents(path, MALFORMED_YAML, -1, NULL));
+    close(fd);
+
+    return path;
+}
+
+static void
+test_parser_null_error_load_from_data(void)
+{
+    g_autoptr(YamlParser) parser = yaml_parser_new();
+    gboolean seen = FALSE;
+
+    g_signal_connect(parser, "error", G_CALLBACK(on_parser_error), &seen);
+
+    g_assert_false(yaml_parser_load_from_data(parser, MALFORMED_YAML, -1,
+                                              NULL));
+    /* the signal still carries the error, even though the caller didn't */
+    g_assert_true(seen);
+}
+
+static void
+test_parser_null_error_load_from_file(void)
+{
+    g_autoptr(YamlParser) parser = yaml_parser_new();
+    g_autofree gchar *path = write_malformed_tmpfile();
+
+    g_assert_false(yaml_parser_load_from_file(parser, path, NULL));
+    g_unlink(path);
+}
+
+static void
+test_parser_null_error_load_from_gfile(void)
+{
+    g_autoptr(YamlParser) parser = yaml_parser_new();
+    g_autofree gchar *path = write_malformed_tmpfile();
+    g_autoptr(GFile) file = g_file_new_for_path(path);
+
+    g_assert_false(yaml_parser_load_from_gfile(parser, file, NULL, NULL));
+    g_unlink(path);
+}
+
+static void
+test_parser_null_error_load_from_stream(void)
+{
+    g_autoptr(YamlParser) parser = yaml_parser_new();
+    g_autoptr(GInputStream) stream = NULL;
+
+    stream = g_memory_input_stream_new_from_data(MALFORMED_YAML, -1, NULL);
+    g_assert_false(yaml_parser_load_from_stream(parser, stream, NULL, NULL));
+}
+
+/* Async completion: finish with a NULL GError ** and quit the loop */
+static void
+on_stream_loaded(
+    GObject      *source,
+    GAsyncResult *result,
+    gpointer      user_data
+)
+{
+    GMainLoop *loop = (GMainLoop *)user_data;
+
+    g_assert_false(yaml_parser_load_from_stream_finish(YAML_PARSER(source),
+                                                       result, NULL));
+    g_main_loop_quit(loop);
+}
+
+static void
+on_gfile_loaded(
+    GObject      *source,
+    GAsyncResult *result,
+    gpointer      user_data
+)
+{
+    GMainLoop *loop = (GMainLoop *)user_data;
+
+    g_assert_false(yaml_parser_load_from_gfile_finish(YAML_PARSER(source),
+                                                      result, NULL));
+    g_main_loop_quit(loop);
+}
+
+static void
+test_parser_null_error_load_from_stream_async(void)
+{
+    g_autoptr(YamlParser) parser = yaml_parser_new();
+    g_autoptr(GInputStream) stream = NULL;
+    g_autoptr(GMainLoop) loop = g_main_loop_new(NULL, FALSE);
+
+    stream = g_memory_input_stream_new_from_data(MALFORMED_YAML, -1, NULL);
+    yaml_parser_load_from_stream_async(parser, stream, NULL,
+                                       on_stream_loaded, loop);
+    g_main_loop_run(loop);
+}
+
+static void
+test_parser_null_error_load_from_gfile_async(void)
+{
+    g_autoptr(YamlParser) parser = yaml_parser_new();
+    g_autofree gchar *path = write_malformed_tmpfile();
+    g_autoptr(GFile) file = g_file_new_for_path(path);
+    g_autoptr(GMainLoop) loop = g_main_loop_new(NULL, FALSE);
+
+    yaml_parser_load_from_gfile_async(parser, file, NULL,
+                                      on_gfile_loaded, loop);
+    g_main_loop_run(loop);
+    g_unlink(path);
+}
+
 int
 main(
     int   argc,
@@ -572,6 +717,18 @@ main(
                     test_parser_self_referential_alias);
     g_test_add_func("/parser/repeated_alias_converted_once",
                     test_parser_repeated_alias_is_converted_once);
+    g_test_add_func("/parser/null_error/load_from_data",
+                    test_parser_null_error_load_from_data);
+    g_test_add_func("/parser/null_error/load_from_file",
+                    test_parser_null_error_load_from_file);
+    g_test_add_func("/parser/null_error/load_from_gfile",
+                    test_parser_null_error_load_from_gfile);
+    g_test_add_func("/parser/null_error/load_from_stream",
+                    test_parser_null_error_load_from_stream);
+    g_test_add_func("/parser/null_error/load_from_stream_async",
+                    test_parser_null_error_load_from_stream_async);
+    g_test_add_func("/parser/null_error/load_from_gfile_async",
+                    test_parser_null_error_load_from_gfile_async);
 
     return g_test_run();
 }

@@ -32,6 +32,7 @@ example_parse(const gchar *filename)
 3. *Error is set only on failure*: Success leaves error unchanged (NULL)
 4. *Caller owns the error*: You must free it with =g_error_free()= or =g_clear_error()=
 5. *Use g_autoptr for automatic cleanup*: =g_autoptr(GError) error = NULL;=
+6. *Passing NULL is allowed*: every =GError **= in yaml-glib accepts =NULL= when you only need the return value; the =YamlParser::error= signal still fires with the error
 
 ** Error Domains
 yaml-glib defines three error domains:
