@@ -731,7 +731,7 @@ Sets the node to an integer scalar.
 gint64 yaml_node_get_int(YamlNode *node);
 #+end_src
 
-Gets the integer value of a scalar node.
+Gets the integer value of a scalar node. Integers follow the YAML 1.2 core schema: decimal with an optional sign (=42=, =-12=, =+7=), =0x= hexadecimal (=0x1ED=) and =0o= octal (=0o17=), within the range of =gint64=. A leading zero is decimal (=010= is 10). Malformed forms such as =0xZZ= or =0x-1= stay strings.
 
 *Parameters:*
 

@@ -233,6 +233,54 @@ test_parser_scalar_types(void)
     g_object_unref(parser);
 }
 
+/* Test YAML 1.2 core-schema integer forms */
+static void
+test_parser_int_bases(void)
+{
+    YamlParser *parser;
+    YamlMapping *mapping;
+    YamlNode *node;
+    GError *error = NULL;
+    const gchar *yaml =
+        "hex: 0x1ED\n"
+        "hex_upper: 0xFFFF\n"
+        "octal: 0o17\n"
+        "padded: 0x001\n"
+        "zero: 0x0\n"
+        "negative: -12\n"
+        "plus: +7\n"
+        "leading_zero: 010\n"
+        "not_hex: 0xZZ\n"
+        "bare_prefix: 0x\n"
+        "signed_hex: 0x-1\n"
+        "too_big: 0x8000000000000000\n";
+
+    parser = yaml_parser_new();
+    g_assert_true(yaml_parser_load_from_data(parser, yaml, -1, &error));
+    g_assert_no_error(error);
+    mapping = yaml_node_get_mapping(yaml_parser_get_root(parser));
+
+    g_assert_cmpint(yaml_mapping_get_int_member(mapping, "hex"), ==, 0x1ED);
+    g_assert_cmpint(yaml_mapping_get_int_member(mapping, "hex_upper"), ==, 0xFFFF);
+    g_assert_cmpint(yaml_mapping_get_int_member(mapping, "octal"), ==, 15);
+    g_assert_cmpint(yaml_mapping_get_int_member(mapping, "padded"), ==, 1);
+    g_assert_cmpint(yaml_mapping_get_int_member(mapping, "zero"), ==, 0);
+    g_assert_cmpint(yaml_mapping_get_int_member(mapping, "negative"), ==, -12);
+    g_assert_cmpint(yaml_mapping_get_int_member(mapping, "plus"), ==, 7);
+    /* YAML 1.2 has no leading-zero octal */
+    g_assert_cmpint(yaml_mapping_get_int_member(mapping, "leading_zero"), ==, 10);
+
+    /* malformed forms stay strings */
+    node = yaml_mapping_get_member(mapping, "not_hex");
+    g_assert_cmpstr(yaml_node_get_string(node), ==, "0xZZ");
+    g_assert_cmpint(yaml_mapping_get_int_member(mapping, "not_hex"), ==, 0);
+    g_assert_cmpint(yaml_mapping_get_int_member(mapping, "bare_prefix"), ==, 0);
+    g_assert_cmpint(yaml_mapping_get_int_member(mapping, "signed_hex"), ==, 0);
+    g_assert_cmpint(yaml_mapping_get_int_member(mapping, "too_big"), ==, 0);
+
+    g_object_unref(parser);
+}
+
 /* Test error handling */
 static void
 test_parser_error(void)
@@ -699,6 +747,7 @@ main(
     g_test_add_func("/parser/immutable", test_parser_immutable);
     g_test_add_func("/parser/reset", test_parser_reset);
     g_test_add_func("/parser/scalar_types", test_parser_scalar_types);
+    g_test_add_func("/parser/int_bases", test_parser_int_bases);
     g_test_add_func("/parser/error", test_parser_error);
     g_test_add_func("/parser/dup_root", test_parser_dup_root);
     g_test_add_func("/parser/steal_root", test_parser_steal_root);

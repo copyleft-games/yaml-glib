@@ -611,7 +611,9 @@ yaml_node_set_int(
  * yaml_node_get_int:
  * @node: a #YamlNode
  *
- * Gets the integer value of a scalar @node.
+ * Gets the integer value of a scalar @node. Integers follow the YAML 1.2
+ * core schema: decimal with an optional sign, `0x` hexadecimal and `0o`
+ * octal, within the range of #gint64.
  *
  * Returns: the integer value, or 0 if not an integer
  *

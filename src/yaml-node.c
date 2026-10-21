@@ -51,6 +51,39 @@ yaml_node_clear_internal(YamlNode *node)
 }
 
 /*
+ * parse_core_int:
+ * @text: a plain scalar
+ * @out: (out): the value
+ *
+ * Integers of the YAML 1.2 core schema: decimal with an optional sign,
+ * 0x hexadecimal and 0o octal. The whole scalar must be the number, and
+ * values outside gint64 are not integers.
+ *
+ * Returns: %TRUE when @text is an integer
+ */
+static gboolean
+parse_core_int(
+    const gchar *text,
+    gint64      *out
+)
+{
+    guint64 magnitude;
+
+    if (text[0] == '0' && (text[1] == 'x' || text[1] == 'o'))
+    {
+        if (!g_ascii_string_to_unsigned(text + 2, text[1] == 'x' ? 16 : 8,
+                                        0, G_MAXINT64, &magnitude, NULL))
+            return FALSE;
+        /* the unsigned parser takes a leading sign; the core schema does not */
+        if (text[2] == '+' || text[2] == '-')
+            return FALSE;
+        *out = (gint64)magnitude;
+        return TRUE;
+    }
+    return g_ascii_string_to_signed(text, 10, G_MININT64, G_MAXINT64, out, NULL);
+}
+
+/*
  * Internal helper to parse scalar string to typed values.
  */
 void
@@ -95,8 +128,7 @@ yaml_node_parse_scalar_internal(YamlNode *node)
     }
 
     /* Try integer */
-    node->data.scalar.int_value = g_ascii_strtoll(value, &endptr, 10);
-    if (endptr != value && *endptr == '\0')
+    if (parse_core_int(value, &node->data.scalar.int_value))
     {
         node->data.scalar.has_int = TRUE;
         node->data.scalar.has_double = TRUE;
@@ -669,7 +701,13 @@ yaml_node_get_int(YamlNode *node)
         return node->data.scalar.int_value;
 
     if (node->data.scalar.value != NULL)
+    {
+        gint64 parsed;
+
+        if (parse_core_int(node->data.scalar.value, &parsed))
+            return parsed;
         return g_ascii_strtoll(node->data.scalar.value, NULL, 10);
+    }
 
     return 0;
 }
