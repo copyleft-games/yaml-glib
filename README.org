@@ -114,6 +114,7 @@ yaml-glib uses a three-file GNU Make build system:
 | =BUILD_EXAMPLES=0= | 1          | Disable example building                |
 | =PREFIX=path=      | /usr/local | Set installation prefix                 |
 | =WINDOWS=1=        | 0          | Cross-compile for Windows x64 (MinGW)   |
+| =BUILDDIR=path=    | build      | Output root (=<path>/{debug,release}/=); one per configuration, e.g. libregnum's cross targets |
 | =LINUX_ARM64=1=    | 0          | Cross-compile for Linux ARM64           |
 
 *** Build Output
